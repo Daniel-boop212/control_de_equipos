@@ -1,0 +1,102 @@
+[
+    {
+        "nombre": "s",
+        "marca": "s",
+        "proveedor": "s",
+        "modelo": "d",
+        "serie": "d",
+        "fecha_compra": "d",
+        "tiempo_garantia": "d",
+        "marca_monitor": "d",
+        "serie_monitor": "d",
+        "marca_teclado": "d",
+        "serie_teclado": "d",
+        "marca_mouse": "f",
+        "serie_mouse": "f",
+        "procesador": "f",
+        "fecha_mantenimiento": "2026-07-05",
+        "descripcion_mantenimiento": "d",
+        "fecha_proximo_mantenimiento": "2026-07-20",
+        "responsable": "d",
+        "documento_responsable": "d",
+        "tipo": "Servidor",
+        "servicio": "UCI",
+        "categoria": "Cómputo",
+        "estado": "🟡",
+        "mantenimientos": [
+            {
+                "fecha": "2026-07-05",
+                "tipo": "Preventivo",
+                "descripcion": "d",
+                "responsable": "d",
+                "documento_responsable": "d",
+                "fecha_proxima": "2026-07-20"
+            }
+        ]
+    },
+    {
+        "codigo_equipo": "h",
+        "rs": "hhh",
+        "codigo_prestador": "h",
+        "registro_importacion": "h",
+        "nombre_equipo": "h",
+        "marca": "h",
+        "modelo": "h",
+        "serie": "h",
+        "ubicacion": "h",
+        "fecha_adquisicion": "h",
+        "numero_factura": "h",
+        "fecha_instalacion": "h",
+        "vencimiento_garantia": "h",
+        "costo": "h",
+        "vida_util": "h",
+        "proveedor": "h",
+        "telefono_proveedor": "h",
+        "contacto_proveedor": "h",
+        "voltaje": "h",
+        "corriente": "h",
+        "potencia": "h",
+        "frecuencia_hz": "h",
+        "presion": "h",
+        "velocidad": "h",
+        "temperatura": "h",
+        "peso": "h",
+        "humedad": "h",
+        "recomendaciones": "h",
+        "tipo_equipo": "Móvil",
+        "forma_adquisicion": "Compra",
+        "fuente_alimentacion": "Corriente",
+        "frecuencia_mantenimiento": "Trimestral",
+        "requiere_calibracion": "Sí",
+        "pdf_mantenimiento": [
+            "C:/Users/dandr/Downloads/1781826431626_COLSOCRItaller_qu_mica_Segundo_per_9_2026.pdf"
+        ],
+        "pdf_calibracion": [],
+        "servicio": "Urgencias",
+        "categoria": "Biomédico",
+        "estado": "🟡",
+        "mantenimientos": [
+            {
+                "fecha": "2026-07-05",
+                "tipo": "Preventivo",
+                "descripcion": "d",
+                "responsable": "d",
+                "documento_responsable": "d",
+                "fecha_proxima": "2026-07-16"
+            },
+            {
+                "fecha": "2026-07-05",
+                "tipo": "Correctivo",
+                "descripcion": "s",
+                "responsable": "s",
+                "documento_responsable": "s",
+                "fecha_proxima": "2026-07-08"
+            }
+        ],
+        "fecha_mantenimiento": "2026-07-05",
+        "descripcion_mantenimiento": "s",
+        "responsable": "s",
+        "documento_responsable": "s",
+        "fecha_proximo_mantenimiento": "2026-07-08"
+    }
+]
