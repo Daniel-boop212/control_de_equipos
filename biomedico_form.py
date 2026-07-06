@@ -63,9 +63,6 @@ class BiomedicoForm(QDialog):
 
         self.inputs = {}
 
-        self.pdfs_mantenimiento = []
-        self.pdfs_calibracion = []
-
         self.crear_campos()
         if self.datos_existentes:
             self.cargar_datos_existentes()
@@ -91,9 +88,6 @@ class BiomedicoForm(QDialog):
         datos["fuente_alimentacion"] = self.fuente.currentText()
         datos["frecuencia_mantenimiento"] = self.mantenimiento.currentText()
         datos["requiere_calibracion"] = self.calibracion.currentText()
-
-        datos["pdf_mantenimiento"] = self.pdfs_mantenimiento
-        datos["pdf_calibracion"] = self.pdfs_calibracion
 
         self.datos_guardados = datos
         self.accept()
@@ -165,51 +159,6 @@ class BiomedicoForm(QDialog):
         self.calibracion.addItems(["Sí", "No"])
         self.form.addRow("Requiere calibración", self.calibracion)
 
-        self.lista_pdf_mantenimiento = QListWidget()
-        self.btn_pdf_mantenimiento = QPushButton("Agregar PDF de mantenimiento")
-
-        self.btn_pdf_mantenimiento.clicked.connect(
-            self.agregar_pdf_mantenimiento
-        )
-
-        self.form.addRow(QLabel("PDFs mantenimiento"))
-        self.form.addRow(self.btn_pdf_mantenimiento)
-        self.form.addRow(self.lista_pdf_mantenimiento)
-
-        self.lista_pdf_calibracion = QListWidget()
-        self.btn_pdf_calibracion = QPushButton("Agregar PDF de calibración")
-
-        self.btn_pdf_calibracion.clicked.connect(
-            self.agregar_pdf_calibracion
-        )
-
-        self.form.addRow(QLabel("PDFs calibración"))
-        self.form.addRow(self.btn_pdf_calibracion)
-        self.form.addRow(self.lista_pdf_calibracion)
-
-    def agregar_pdf_mantenimiento(self):
-        archivo, _ = QFileDialog.getOpenFileName(
-        self,
-        "Seleccionar PDF",
-        "",
-        "PDF Files (*.pdf)"
-        )
-
-        if archivo:
-            self.pdfs_mantenimiento.append(archivo)
-            self.lista_pdf_mantenimiento.addItem(archivo)
-
-    def agregar_pdf_calibracion(self):
-        archivo, _ = QFileDialog.getOpenFileName(
-        self,
-        "Seleccionar PDF",
-        "",
-        "PDF Files (*.pdf)"
-        )
-
-        if archivo:
-            self.pdfs_calibracion.append(archivo)
-            self.lista_pdf_calibracion.addItem(archivo)
 
     def cargar_datos_existentes(self):
         for nombre_visual, widget in self.inputs.items():
