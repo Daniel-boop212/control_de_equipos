@@ -2,17 +2,23 @@ from base_form import BaseForm
 from PyQt6.QtWidgets import QDateEdit, QComboBox
 from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import QLineEdit, QDateEdit, QComboBox
+from PyQt6.QtWidgets import QMessageBox
 
 MAPEO_CAMPOS = {
+    "imagen_equipo": "imagen",
+
+    # Información general
     "Código del equipo": "codigo_equipo",
     "R.S.": "rs",
     "Código del prestador": "codigo_prestador",
     "Registro de importación": "registro_importacion",
-    "Nombre del equipo": "nombre_equipo",
+    "Nombre del equipo": "nombre",
     "Marca": "marca",
     "Modelo": "modelo",
     "Serie": "serie",
     "Ubicación": "ubicacion",
+
+    # Adquisición y proveedor
     "Fecha de adquisición": "fecha_adquisicion",
     "N° de factura": "numero_factura",
     "Fecha de instalación": "fecha_instalacion",
@@ -22,6 +28,8 @@ MAPEO_CAMPOS = {
     "Proveedor": "proveedor",
     "Teléfono del proveedor": "telefono_proveedor",
     "Contacto del proveedor": "contacto_proveedor",
+
+    # Especificaciones técnicas
     "Voltaje": "voltaje",
     "Corriente": "corriente",
     "Potencia": "potencia",
@@ -31,13 +39,16 @@ MAPEO_CAMPOS = {
     "Temperatura": "temperatura",
     "Peso": "peso",
     "Humedad": "humedad",
-    "Recomendaciones del fabricante": "recomendaciones",
+
+    # Configuración
     "Tipo de equipo": "tipo_equipo",
     "Forma de adquisición": "forma_adquisicion",
     "Fuente de alimentación": "fuente_alimentacion",
     "Frecuencia de mantenimiento": "frecuencia_mantenimiento",
     "Requiere calibración": "requiere_calibracion",
-    "imagen_equipo": "imagen"
+
+    # Recomendaciones
+    "Recomendaciones del fabricante": "recomendaciones"
 }
 
 
@@ -59,18 +70,15 @@ class BiomedicoForm(BaseForm):
 
         self.agregar_seccion("Información general")
 
-        for campo in [
-            "Código del equipo",
-            "R.S.",
-            "Código del prestador",
-            "Registro de importación",
-            "Nombre del equipo",
-            "Marca",
-            "Modelo",
-            "Serie",
-            "Ubicación"
-        ]:
-            self.agregar_input(campo)
+        self.agregar_input("Código del equipo", obligatorio=True)
+        self.agregar_input("R.S.")
+        self.agregar_input("Código del prestador")
+        self.agregar_input("Registro de importación")
+        self.agregar_input("Nombre del equipo", obligatorio=True)
+        self.agregar_input("Marca", obligatorio=True)
+        self.agregar_input("Modelo", obligatorio=True)
+        self.agregar_input("Serie", obligatorio=True)
+        self.agregar_input("Ubicación")
 
         self.agregar_seccion("Adquisición y proveedor")
 
@@ -123,6 +131,21 @@ class BiomedicoForm(BaseForm):
         self.agregar_input("Recomendaciones del fabricante")
 
     def guardar_datos(self):
+        faltante = self.validar_campos_obligatorios([
+    "Código del equipo",
+    "Nombre del equipo",
+    "Marca",
+    "Modelo",
+    "Serie"
+])
+
+        if faltante:
+            QMessageBox.warning(
+    self,
+    "Campo obligatorio",
+    f"Falta llenar: {faltante}"
+)
+            return
         datos = {}
 
         for nombre, widget in self.inputs.items():

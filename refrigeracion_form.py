@@ -1,7 +1,24 @@
 from base_form import BaseForm
 from PyQt6.QtWidgets import QDateEdit, QComboBox
 from PyQt6.QtCore import QDate
+from PyQt6.QtWidgets import QDateEdit, QComboBox, QLineEdit
+from PyQt6.QtWidgets import QMessageBox
 
+MAPEO_CAMPOS = {
+    "imagen_equipo": "imagen",
+    "Nombre": "nombre",
+    "Marca": "marca",
+    "Modelo": "modelo",
+    "Serie": "serie",
+    "Tipo": "tipo",
+    "Capacidad": "capacidad",
+    "Fecha de compra": "fecha_compra",
+    "Proveedor": "proveedor",
+    "Garantía": "garantia",
+    "Vida útil": "vida_util",
+    "Teléfono del proveedor": "telefono_proveedor",
+    "Ubicación": "ubicacion"
+}
 
 class RefrigeracionForm(BaseForm):
     def __init__(self, datos_existentes=None):
@@ -22,10 +39,10 @@ class RefrigeracionForm(BaseForm):
 
         self.agregar_seccion("Información general")
 
-        self.agregar_input("Nombre")
-        self.agregar_input("Marca")
-        self.agregar_input("Modelo")
-        self.agregar_input("Serie")
+        self.agregar_input("Nombre", obligatorio=True)
+        self.agregar_input("Marca", obligatorio=True)
+        self.agregar_input("Modelo", obligatorio=True)
+        self.agregar_input("Serie", obligatorio=True)
 
         self.agregar_combo(
             "Tipo",
@@ -49,31 +66,63 @@ class RefrigeracionForm(BaseForm):
         self.agregar_input("Ubicación")  # extra para dejar pares
 
     def guardar_datos(self):
+        faltante = self.validar_campos_obligatorios([
+    "Nombre",
+    "Marca",
+    "Modelo",
+    "Serie"
+])
+
+        if faltante:
+            QMessageBox.warning(
+    self,
+    "Campo obligatorio",
+    f"Falta llenar: {faltante}"
+)
+            return
         datos = {}
 
         for nombre, widget in self.inputs.items():
-            if isinstance(widget, QDateEdit):
-                datos[nombre] = widget.date().toString("dd/MM/yyyy")
+            clave = MAPEO_CAMPOS.get(nombre)
+
+            if not clave:
+                continue
+
+            if isinstance(widget, dict) and widget.get("tipo") == "imagen":
+                datos[clave] = widget["valor"]
+
+            elif isinstance(widget, QDateEdit):
+                datos[clave] = widget.date().toString("dd/MM/yyyy")
+
             elif isinstance(widget, QComboBox):
-                datos[nombre] = widget.currentText()
-            else:
-                datos[nombre] = widget.text()
+                datos[clave] = widget.currentText()
+
+            elif isinstance(widget, QLineEdit):
+                datos[clave] = widget.text()
 
         self.datos_guardados = datos
         self.accept()
 
     def cargar_datos_existentes(self):
         for nombre, widget in self.inputs.items():
-            if nombre in self.datos_existentes:
-                valor = self.datos_existentes[nombre]
+            clave = MAPEO_CAMPOS.get(nombre)
 
-                if isinstance(widget, QDateEdit):
-                    fecha = QDate.fromString(str(valor), "dd/MM/yyyy")
-                    if fecha.isValid():
-                        widget.setDate(fecha)
+            if not clave or clave not in self.datos_existentes:
+                continue
 
-                elif isinstance(widget, QComboBox):
-                    widget.setCurrentText(str(valor))
+            valor = self.datos_existentes[clave]
 
-                else:
-                    widget.setText(str(valor))
+            if isinstance(widget, dict) and widget.get("tipo") == "imagen":
+                widget["valor"] = valor
+                widget["widget"].setText("Imagen cargada ✓")
+
+            elif isinstance(widget, QDateEdit):
+                fecha = QDate.fromString(str(valor), "dd/MM/yyyy")
+                if fecha.isValid():
+                    widget.setDate(fecha)
+
+            elif isinstance(widget, QComboBox):
+                widget.setCurrentText(str(valor))
+
+            elif isinstance(widget, QLineEdit):
+                widget.setText(str(valor))

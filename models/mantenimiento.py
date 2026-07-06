@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 class Mantenimiento:
     def __init__(self, fecha, tipo, descripcion):
         self.fecha = fecha
@@ -8,14 +7,14 @@ class Mantenimiento:
         self.descripcion = descripcion
 
     @staticmethod
-    def calcular_estado(fecha_proxima, realizado=False):
-        if realizado:
-            return "🔵"
+    def calcular_estado(fecha_proxima):
+        if not fecha_proxima:
+            return "⚪"
 
         try:
             fecha = datetime.strptime(
                 fecha_proxima,
-                "%Y-%m-%d"
+                "%d/%m/%Y"
             ).date()
         except ValueError:
             return "⚪"

@@ -20,13 +20,15 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QLineEdit
 from PyQt6.QtWidgets import QMenu
-
+from datetime import datetime
 from biomedico_form import BiomedicoForm
 from computo_form import ComputoForm
 from refrigeracion_form import RefrigeracionForm
 from muebles_form import MueblesForm
 from mantenimiento_form import MantenimientoForm
+from alertas_window import AlertasWindow
 from models.mantenimiento import Mantenimiento
+from ayuda_window import AyudaWindow
 from utils.pdf_generator import generar_pdf_hoja_vida
 
 FORMULARIOS = {
@@ -258,6 +260,10 @@ QInputDialog QLineEdit {
         self.btn_alertas.clicked.connect(self.mostrar_alertas_manual)
         top_bar.addWidget(self.btn_alertas)
 
+        self.btn_ayuda = QPushButton("❓ Ayuda")
+        self.btn_ayuda.clicked.connect(self.mostrar_ayuda)
+        top_bar.addWidget(self.btn_ayuda)
+
         right_layout.addLayout(top_bar)
 
         filtros_layout = QHBoxLayout()
@@ -353,7 +359,7 @@ QInputDialog QLineEdit {
 )
 
         self.tabs.addTab(self.tab_hoja_vida, "Hoja de vida")
-        self.tabs.addTab(self.tab_mantenimientos, "Documentos")
+        self.tabs.addTab(self.tab_mantenimientos, "Historial de mantenimientos")
 
         right_layout.addWidget(self.tabs)
 
@@ -478,10 +484,7 @@ QInputDialog QLineEdit {
         self.equipos_visibles = lista
 
         for fila, equipo in enumerate(lista):
-            nombre = equipo.get(
-            "nombre_equipo",
-            equipo.get("nombre", "Sin nombre")
-            )
+            nombre = equipo.get("nombre", "Sin nombre")
             categoria = equipo.get("categoria", "")
             estado = equipo.get("estado", "")
 
@@ -522,7 +525,8 @@ QInputDialog QLineEdit {
             if clave in [
             "mantenimientos",
             "pdf_mantenimiento",
-            "pdf_calibracion"
+            "pdf_calibracion",
+            "imagen"
             ]:
                 continue
 
@@ -815,10 +819,13 @@ QInputDialog QLineEdit {
         self.actualizar_boton_alertas()
 
     def obtener_estado_equipo(self, equipo):
-        fecha = equipo.get("fecha_proximo_mantenimiento")
+        mantenimientos = equipo.get("mantenimientos", [])
 
-        if not fecha:
-            return "⚪"
+        if not mantenimientos:
+            return "🔵"   # o ⚪ si prefieres
+
+        ultimo = mantenimientos[-1]
+        fecha = ultimo.get("fecha_proxima")
 
         return Mantenimiento.calcular_estado(fecha)
     
@@ -873,45 +880,45 @@ QInputDialog QLineEdit {
         for equipo in self.equipos:
             estado = equipo.get("estado", "⚪")
 
-            if estado in ["🔴", "🟡"]:
-                nombre = equipo.get(
-                "nombre_equipo",
-                equipo.get("nombre", "Sin nombre")
-                )
+            if estado not in ["🔴", "🟡"]:
+                continue
 
-                servicio = equipo.get("servicio", "Sin servicio")
-                fecha = equipo.get("fecha_proximo_mantenimiento", "Sin fecha")
+            nombre = equipo.get(
+            "nombre_equipo",
+            equipo.get("nombre", "Sin nombre")
+            )
 
-                alertas.append({
-                "nombre": nombre,
-                "servicio": servicio,
-                "estado": estado,
-                "fecha": fecha
-                })
+            servicio = equipo.get("servicio", "Sin servicio")
+            fecha = equipo.get("fecha_proximo_mantenimiento", "Sin fecha")
+
+            dias_restantes = None
+
+            try:
+                fecha_obj = datetime.strptime(fecha, "%Y-%m-%d").date()
+                hoy = datetime.now().date()
+                dias_restantes = (fecha_obj - hoy).days
+            except:
+                pass
+
+            alertas.append({
+            "nombre": nombre,
+            "servicio": servicio,
+            "estado": estado,
+            "fecha": fecha,
+            "dias_restantes": dias_restantes
+            })
 
         return alertas
     
     def mostrar_alertas_inicio(self):
-        alertas = self.obtener_alertas_mantenimiento()
+        cantidad = len(self.obtener_alertas_mantenimiento())
 
-        if not alertas:
-            return
-
-        mensaje = "Equipos con mantenimiento próximo o vencido:\n\n"
-
-        for alerta in alertas:
-            mensaje += (
-            f"{alerta['estado']} "
-            f"{alerta['nombre']} "
-            f"({alerta['servicio']})\n"
-            f"Fecha: {alerta['fecha']}\n\n"
+        if cantidad > 0:
+            self.mostrar_info(
+            "Alertas",
+            f"Hay {cantidad} alertas de mantenimiento.\n"
+            "Presiona el botón ⚠ Alertas para ver detalles."
             )
-
-        QMessageBox.warning(
-        self,
-        "Alertas de mantenimiento",
-        mensaje
-        )
 
     def mostrar_alertas_manual(self):
         alertas = self.obtener_alertas_mantenimiento()
@@ -923,20 +930,8 @@ QInputDialog QLineEdit {
             )
             return
 
-        mensaje = ""
-
-        for alerta in alertas:
-            mensaje += (
-            f"{alerta['estado']} "
-            f"{alerta['nombre']}\n"
-            f"Servicio: {alerta['servicio']}\n"
-            f"Fecha: {alerta['fecha']}\n\n"
-            )
-
-        self.mostrar_warning(
-        "Próximos mantenimientos",
-        mensaje
-        )
+        ventana = AlertasWindow(alertas)
+        ventana.exec()
 
     def actualizar_boton_alertas(self):
         cantidad = len(self.obtener_alertas_mantenimiento())
@@ -1059,6 +1054,9 @@ QInputDialog QLineEdit {
             return
         
         del self.equipo_actual["mantenimientos"][indice]
+        self.actualizar_estado_mantenimientos(self.equipo_actual)
+        self.aplicar_filtros()
+        self.actualizar_boton_alertas()
 
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
@@ -1090,6 +1088,9 @@ QInputDialog QLineEdit {
             return
 
         self.equipo_actual["mantenimientos"][indice] = ventana.datos
+        self.actualizar_estado_mantenimientos(self.equipo_actual)
+        self.aplicar_filtros()      
+        self.actualizar_boton_alertas()
 
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
@@ -1122,3 +1123,23 @@ QInputDialog QLineEdit {
             return
 
         generar_pdf_hoja_vida(equipo, ruta)
+
+    def actualizar_estado_mantenimientos(self, equipo):
+        mantenimientos = equipo.get("mantenimientos", [])
+
+        if not mantenimientos:
+            equipo.pop("fecha_proximo_mantenimiento", None)
+            equipo["estado"] = "⚪"
+            return
+
+        ultimo = mantenimientos[-1]
+
+        equipo["fecha_proximo_mantenimiento"] = ultimo.get(
+        "fecha_proxima", ""
+        )
+
+        equipo["estado"] = self.obtener_estado_equipo(equipo)
+
+    def mostrar_ayuda(self):
+        ventana = AyudaWindow()
+        ventana.exec()
