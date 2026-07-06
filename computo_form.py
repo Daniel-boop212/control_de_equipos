@@ -1,97 +1,40 @@
-from PyQt6.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QFormLayout,
-    QLineEdit, QPushButton, QScrollArea, QComboBox
-)
+from base_form import BaseForm
 
-
-class ComputoForm(QDialog):
+class ComputoForm(BaseForm):
     def __init__(self, datos_existentes=None):
-        super().__init__()
-        self.datos_existentes = datos_existentes
-        self.setWindowTitle("Agregar equipo de cómputo")
-        self.resize(700, 700)
+        super().__init__("Equipo de cómputo")
+        self.agregar_seccion("Imagen")
+        self.agregar_selector_imagen("imagen_equipo")
 
-        layout_principal = QVBoxLayout()
-        self.setLayout(layout_principal)
+        self.agregar_seccion("Información general")
+        self.agregar_input("Nombre")
+        self.agregar_input("Marca")
+        self.agregar_input("Modelo")
+        self.agregar_input("Serie")
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        layout_principal.addWidget(scroll)
+        self.agregar_seccion("Compra")
+        self.agregar_fecha("Fecha compra")
+        self.agregar_input("Garantía")
+        self.agregar_input("Proveedor")
 
-        contenido = QWidget()
-        scroll.setWidget(contenido)
+        self.agregar_seccion("Hardware")
+        self.agregar_input("Procesador")
+        self.agregar_input("Marca monitor")
+        self.agregar_input("Serie monitor")
 
-        self.form = QFormLayout()
-        contenido.setLayout(self.form)
-
-        self.inputs = {}
-        self.crear_campos()
-        if self.datos_existentes:
-            self.cargar_datos_existentes()
-
-        self.btn_guardar = QPushButton("Guardar")
-        self.btn_guardar.clicked.connect(self.guardar_datos)
-        layout_principal.addWidget(self.btn_guardar)
-
-    def agregar_input(self, nombre):
-        campo = QLineEdit()
-        self.form.addRow(nombre, campo)
-        self.inputs[nombre] = campo
-
-    def crear_campos(self):
-        campos = [
-            "nombre",
-            "marca",
-            "proveedor",
-            "modelo",
-            "serie",
-            "fecha_compra",
-            "tiempo_garantia",
-            "marca_monitor",
-            "serie_monitor",
-            "marca_teclado",
-            "serie_teclado",
-            "marca_mouse",
-            "serie_mouse",
-            "procesador",
-            "fecha_mantenimiento",
-            "descripcion_mantenimiento",
-            "fecha_proximo_mantenimiento",
-            "responsable",
-            "documento_responsable"
-        ]
-
-        for campo in campos:
-            self.agregar_input(campo)
-
-        self.tipo = QComboBox()
-        self.tipo.addItems([
+        self.agregar_combo("Tipo", [
             "Computador",
             "Televisor",
             "Impresora",
             "Scanner",
-            "Servidor",
-            "Otro"
+            "Servidor"
         ])
-        self.form.addRow("tipo", self.tipo)
 
-    def guardar_datos(self):
-        datos = {}
+        self.btn_guardar.clicked.connect(self.guardar)
 
-        for nombre, widget in self.inputs.items():
-            datos[nombre] = widget.text()
+        if datos_existentes:
+            self.cargar_datos_existentes(datos_existentes)
 
-        datos["tipo"] = self.tipo.currentText()
-
-        self.datos_guardados = datos
+    def guardar(self):
+        self.datos_guardados = self.obtener_datos()
         self.accept()
-
-    def cargar_datos_existentes(self):
-        for nombre, widget in self.inputs.items():
-            if nombre in self.datos_existentes:
-                widget.setText(str(self.datos_existentes[nombre]))
-
-        if "tipo" in self.datos_existentes:
-            self.tipo.setCurrentText(
-                self.datos_existentes["tipo"]
-            )

@@ -1,8 +1,7 @@
-from PyQt6.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QFormLayout,
-    QLineEdit, QPushButton, QScrollArea, QComboBox,
-    QListWidget, QFileDialog, QLabel
-)
+from base_form import BaseForm
+from PyQt6.QtWidgets import QDateEdit, QComboBox
+from PyQt6.QtCore import QDate
+from PyQt6.QtWidgets import QLineEdit, QDateEdit, QComboBox
 
 MAPEO_CAMPOS = {
     "Código del equipo": "codigo_equipo",
@@ -33,67 +32,34 @@ MAPEO_CAMPOS = {
     "Peso": "peso",
     "Humedad": "humedad",
     "Recomendaciones del fabricante": "recomendaciones",
-    "fecha mantenimiento" : "fecha_mantenimiento",
-    "fecha proximo mantenimiento" : "fecha_proximo_mantenimiento",
-    "responsable": "responsable",
-    "documento responsable": "documento_responsable",
-    "descripcion mantenimiento": "descripcion_mantenimiento",
+    "Tipo de equipo": "tipo_equipo",
+    "Forma de adquisición": "forma_adquisicion",
+    "Fuente de alimentación": "fuente_alimentacion",
+    "Frecuencia de mantenimiento": "frecuencia_mantenimiento",
+    "Requiere calibración": "requiere_calibracion",
+    "imagen_equipo": "imagen"
 }
 
-class BiomedicoForm(QDialog):
+
+class BiomedicoForm(BaseForm):
     def __init__(self, datos_existentes=None):
-        super().__init__()
+        super().__init__("Agregar equipo biomédico")
+
         self.datos_existentes = datos_existentes
-
-        self.setWindowTitle("Agregar equipo biomédico")
-        self.resize(700, 700)
-
-        layout_principal = QVBoxLayout()
-        self.setLayout(layout_principal)
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        layout_principal.addWidget(scroll)
-
-        contenido = QWidget()
-        scroll.setWidget(contenido)
-
-        self.form = QFormLayout()
-        contenido.setLayout(self.form)
-
-        self.inputs = {}
-
         self.crear_campos()
+
         if self.datos_existentes:
             self.cargar_datos_existentes()
 
-        self.btn_guardar = QPushButton("Guardar")
         self.btn_guardar.clicked.connect(self.guardar_datos)
-        layout_principal.addWidget(self.btn_guardar)
-
-    def agregar_input(self, nombre):
-        campo = QLineEdit()
-        self.form.addRow(nombre, campo)
-        self.inputs[nombre] = campo
-
-    def guardar_datos(self):
-        datos = {}
-
-        for nombre_visual, widget in self.inputs.items():
-            clave_interna = MAPEO_CAMPOS[nombre_visual]
-            datos[clave_interna] = widget.text()
-
-        datos["tipo_equipo"] = self.tipo_equipo.currentText()
-        datos["forma_adquisicion"] = self.forma_adquisicion.currentText()
-        datos["fuente_alimentacion"] = self.fuente.currentText()
-        datos["frecuencia_mantenimiento"] = self.mantenimiento.currentText()
-        datos["requiere_calibracion"] = self.calibracion.currentText()
-
-        self.datos_guardados = datos
-        self.accept()
 
     def crear_campos(self):
-        campos_texto = [
+        self.agregar_seccion("Imagen")
+        self.agregar_selector_imagen("imagen_equipo")
+
+        self.agregar_seccion("Información general")
+
+        for campo in [
             "Código del equipo",
             "R.S.",
             "Código del prestador",
@@ -102,16 +68,25 @@ class BiomedicoForm(QDialog):
             "Marca",
             "Modelo",
             "Serie",
-            "Ubicación",
-            "Fecha de adquisición",
-            "N° de factura",
-            "Fecha de instalación",
-            "Vencimiento de garantía",
-            "Costo",
-            "Vida útil",
-            "Proveedor",
-            "Teléfono del proveedor",
-            "Contacto del proveedor",
+            "Ubicación"
+        ]:
+            self.agregar_input(campo)
+
+        self.agregar_seccion("Adquisición y proveedor")
+
+        self.agregar_fecha("Fecha de adquisición")
+        self.agregar_input("N° de factura")
+        self.agregar_fecha("Fecha de instalación")
+        self.agregar_fecha("Vencimiento de garantía")
+        self.agregar_input("Costo")
+        self.agregar_input("Vida útil")
+        self.agregar_input("Proveedor")
+        self.agregar_input("Teléfono del proveedor")
+        self.agregar_input("Contacto del proveedor")
+
+        self.agregar_seccion("Especificaciones técnicas")
+
+        for campo in [
             "Voltaje",
             "Corriente",
             "Potencia",
@@ -120,75 +95,88 @@ class BiomedicoForm(QDialog):
             "Velocidad",
             "Temperatura",
             "Peso",
-            "Humedad",
-            "Recomendaciones del fabricante"
-        ]
-
-        for campo in campos_texto:
+            "Humedad"
+        ]:
             self.agregar_input(campo)
-        self.tipo_equipo = QComboBox()
-        self.tipo_equipo.addItems(["Móvil", "Fijo"])
-        self.form.addRow("Tipo de equipo", self.tipo_equipo)
 
-        self.forma_adquisicion = QComboBox()
-        self.forma_adquisicion.addItems([
-            "Compra",
-            "Alquiler",
-            "Donación",
-            "Otro"
-        ])
-        self.form.addRow("Forma de adquisición", self.forma_adquisicion)
+        self.agregar_seccion("Configuración")
 
-        self.fuente = QComboBox()
-        self.fuente.addItems([
-            "Corriente",
-            "Batería",
-            "Otro"
-        ])
-        self.form.addRow("Fuente de alimentación", self.fuente)
+        self.agregar_combo("Tipo de equipo", ["Móvil", "Fijo"])
+        self.agregar_combo(
+            "Forma de adquisición",
+            ["Compra", "Alquiler", "Donación", "Otro"]
+        )
+        self.agregar_combo(
+            "Fuente de alimentación",
+            ["Corriente", "Batería", "Otro"]
+        )
+        self.agregar_combo(
+            "Frecuencia de mantenimiento",
+            ["Trimestral", "Semestral", "Anual"]
+        )
+        self.agregar_combo(
+            "Requiere calibración",
+            ["Sí", "No"]
+        )
 
-        self.mantenimiento = QComboBox()
-        self.mantenimiento.addItems([
-            "Trimestral",
-            "Semestral",
-            "Anual"
-        ])
-        self.form.addRow("Mantenimiento", self.mantenimiento)
+        self.agregar_seccion("Recomendaciones")
+        self.agregar_input("Recomendaciones del fabricante")
 
-        self.calibracion = QComboBox()
-        self.calibracion.addItems(["Sí", "No"])
-        self.form.addRow("Requiere calibración", self.calibracion)
+    def guardar_datos(self):
+        datos = {}
 
+        for nombre, widget in self.inputs.items():
+
+            clave = MAPEO_CAMPOS.get(nombre)
+            if not clave:
+                continue
+
+            # 📅 fecha
+            if isinstance(widget, QDateEdit):
+                datos[clave] = widget.date().toString("dd/MM/yyyy")
+
+            # 🔽 combo
+            elif isinstance(widget, QComboBox):
+                datos[clave] = widget.currentText()
+
+            # 📝 texto
+            elif isinstance(widget, QLineEdit):
+                datos[clave] = widget.text()
+
+            # 🖼 imagen (IMPORTANTE)
+            elif isinstance(widget, dict) and widget.get("tipo") == "imagen":
+                datos[clave] = widget.get("valor")
+
+            else:
+                # fallback seguro
+                try:
+                    datos[clave] = widget.text()
+                except:
+                    datos[clave] = ""
+
+        self.datos_guardados = datos
+        self.accept()
 
     def cargar_datos_existentes(self):
-        for nombre_visual, widget in self.inputs.items():
-            clave_json = MAPEO_CAMPOS[nombre_visual]
+        for nombre, widget in self.inputs.items():
+            clave = MAPEO_CAMPOS[nombre]
 
-            if clave_json in self.datos_existentes:
-                valor = self.datos_existentes[clave_json]
-                widget.setText(str(valor))
+            if clave in self.datos_existentes:
+                valor = self.datos_existentes[clave]
 
-        if "tipo_equipo" in self.datos_existentes:
-            self.tipo_equipo.setCurrentText(
-                self.datos_existentes["tipo_equipo"]
-            )
+                if isinstance(widget, QDateEdit):
+                    fecha = QDate.fromString(str(valor), "dd/MM/yyyy")
+                    if fecha.isValid():
+                        widget.setDate(fecha)
 
-        if "forma_adquisicion" in self.datos_existentes:
-            self.forma_adquisicion.setCurrentText(
-                self.datos_existentes["forma_adquisicion"]
-            )
+                elif isinstance(widget, QComboBox):
+                    widget.setCurrentText(str(valor))
 
-        if "fuente_alimentacion" in self.datos_existentes:
-            self.fuente.setCurrentText(
-                self.datos_existentes["fuente_alimentacion"]
-            )
+                elif isinstance(self.inputs[nombre], dict):
+                    if self.inputs[nombre].get("tipo") == "imagen":
+                        if valor:
+                            self.inputs[nombre]["valor"] = valor
+                            self.inputs[nombre]["widget"].setText("Imagen cargada ✓")
 
-        if "frecuencia_mantenimiento" in self.datos_existentes:
-            self.mantenimiento.setCurrentText(
-                self.datos_existentes["frecuencia_mantenimiento"]
-            )
-
-        if "requiere_calibracion" in self.datos_existentes:
-            self.calibracion.setCurrentText(
-             self.datos_existentes["requiere_calibracion"]
-            )
+                else:
+                    widget.setText(str(valor))

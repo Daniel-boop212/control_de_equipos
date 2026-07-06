@@ -1,80 +1,63 @@
-from PyQt6.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QFormLayout,
-    QLineEdit, QPushButton, QScrollArea, QComboBox
-)
+from base_form import BaseForm
+from PyQt6.QtWidgets import QDateEdit, QComboBox
+from PyQt6.QtCore import QDate
 
 
-class RefrigeracionForm(QDialog):
+class RefrigeracionForm(BaseForm):
     def __init__(self, datos_existentes=None):
-        super().__init__()
+        super().__init__("Equipo de refrigeración")
+
         self.datos_existentes = datos_existentes
-        self.setWindowTitle("Agregar equipo de refrigeración")
-        self.resize(700, 700)
 
-        layout_principal = QVBoxLayout()
-        self.setLayout(layout_principal)
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        layout_principal.addWidget(scroll)
-
-        contenido = QWidget()
-        scroll.setWidget(contenido)
-
-        self.form = QFormLayout()
-        contenido.setLayout(self.form)
-
-        self.inputs = {}
         self.crear_campos()
+
         if self.datos_existentes:
             self.cargar_datos_existentes()
 
-        self.btn_guardar = QPushButton("Guardar")
         self.btn_guardar.clicked.connect(self.guardar_datos)
-        layout_principal.addWidget(self.btn_guardar)
-
-    def agregar_input(self, nombre):
-        campo = QLineEdit()
-        self.form.addRow(nombre, campo)
-        self.inputs[nombre] = campo
 
     def crear_campos(self):
-        campos = [
-            "nombre",
-            "marca",
-            "modelo",
-            "serie",
-            "fecha_compra",
-            "proveedor",
-            "garantia",
-            "vida_util",
-            "telefono_proveedor",
-            "fecha_mantenimiento",
-            "descripcion_mantenimiento",
-            "fecha_proximo_mantenimiento",
-            "responsable_mantenimiento",
-            "documento_responsable"
-        ]
+        self.agregar_seccion("Imagen")
+        self.agregar_selector_imagen("imagen_equipo")
 
-        for campo in campos:
-            self.agregar_input(campo)
+        self.agregar_seccion("Información general")
 
-        self.tipo = QComboBox()
-        self.tipo.addItems([
-            "Aire acondicionado",
-            "Nevera",
-            "Congelador",
-            "Otro"
-        ])
-        self.form.addRow("tipo", self.tipo)
+        self.agregar_input("Nombre")
+        self.agregar_input("Marca")
+        self.agregar_input("Modelo")
+        self.agregar_input("Serie")
+
+        self.agregar_combo(
+            "Tipo",
+            [
+                "Aire acondicionado",
+                "Nevera",
+                "Congelador",
+                "Otro"
+            ]
+        )
+
+        self.agregar_input("Capacidad")  # agregado para evitar hueco visual
+
+        self.agregar_seccion("Compra y proveedor")
+
+        self.agregar_fecha("Fecha de compra")
+        self.agregar_input("Proveedor")
+        self.agregar_input("Garantía")
+        self.agregar_input("Vida útil")
+        self.agregar_input("Teléfono del proveedor")
+        self.agregar_input("Ubicación")  # extra para dejar pares
 
     def guardar_datos(self):
         datos = {}
 
         for nombre, widget in self.inputs.items():
-            datos[nombre] = widget.text()
-
-        datos["tipo"] = self.tipo.currentText()
+            if isinstance(widget, QDateEdit):
+                datos[nombre] = widget.date().toString("dd/MM/yyyy")
+            elif isinstance(widget, QComboBox):
+                datos[nombre] = widget.currentText()
+            else:
+                datos[nombre] = widget.text()
 
         self.datos_guardados = datos
         self.accept()
@@ -82,9 +65,15 @@ class RefrigeracionForm(QDialog):
     def cargar_datos_existentes(self):
         for nombre, widget in self.inputs.items():
             if nombre in self.datos_existentes:
-                widget.setText(str(self.datos_existentes[nombre]))
+                valor = self.datos_existentes[nombre]
 
-        if "tipo" in self.datos_existentes:
-            self.tipo.setCurrentText(
-                self.datos_existentes["tipo"]
-            )
+                if isinstance(widget, QDateEdit):
+                    fecha = QDate.fromString(str(valor), "dd/MM/yyyy")
+                    if fecha.isValid():
+                        widget.setDate(fecha)
+
+                elif isinstance(widget, QComboBox):
+                    widget.setCurrentText(str(valor))
+
+                else:
+                    widget.setText(str(valor))

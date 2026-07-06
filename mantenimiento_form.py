@@ -1,109 +1,96 @@
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout,
-    QLineEdit, QComboBox, QPushButton,
-    QDateEdit, QFileDialog, QLabel, QHBoxLayout
-)
-from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import QFileDialog
+from base_form import BaseForm
 
-class MantenimientoForm(QDialog):
-    def __init__(self, categoria=None):
-        super().__init__()
+
+class MantenimientoForm(BaseForm):
+    def __init__(self, categoria=None, datos_existentes=None):
+        super().__init__("Registrar mantenimiento", 1000, 700)
+
         self.categoria = categoria
-        self.setWindowTitle("Registrar mantenimiento")
-        self.resize(400, 300)
-        self.pdf_mantenimiento = ""
-        self.pdf_calibracion = ""
+        self.datos_existentes = datos_existentes
+        self.pdf_mantenimiento = None
+        self.pdf_calibracion = None
 
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        self.crear_campos()
 
-        form = QFormLayout()
-        layout.addLayout(form)
+        if datos_existentes:
+            self.cargar_datos_existentes(datos_existentes)
 
-        # Fecha mantenimiento
-        self.fecha = QDateEdit()
-        self.fecha.setCalendarPopup(True)
-        self.fecha.setDate(QDate.currentDate())
-        form.addRow("Fecha mantenimiento", self.fecha)
+            self.pdf_mantenimiento = datos_existentes.get("pdf_mantenimiento")
+            self.pdf_calibracion = datos_existentes.get("pdf_calibracion")
 
-        # Tipo
-        self.tipo = QComboBox()
-        self.tipo.addItems([
+        self.btn_guardar.clicked.connect(self.guardar)
+
+    def crear_campos(self):
+        # ================= INFO =================
+        self.agregar_seccion("Información del mantenimiento")
+
+        self.agregar_fecha("fecha")
+        self.agregar_combo("tipo", [
             "Preventivo",
             "Correctivo",
             "Calibración",
             "Otro"
         ])
-        form.addRow("Tipo", self.tipo)
+        self.agregar_fecha("fecha_proxima")
 
-        # Descripción
-        self.descripcion = QLineEdit()
-        form.addRow("Descripción", self.descripcion)
+        # ================= RESPONSABLE =================
+        self.agregar_seccion("Responsable")
 
-        # Responsable
-        self.responsable = QLineEdit()
-        form.addRow("Responsable", self.responsable)
+        self.agregar_input("responsable")
+        self.agregar_input("documento_responsable")
 
-        # Documento responsable
-        self.documento = QLineEdit()
-        form.addRow("Documento responsable", self.documento)
+        # ================= DESCRIPCIÓN =================
+        self.agregar_seccion("Descripción")
+        self.agregar_textarea("descripcion")
 
-        # Fecha próximo mantenimiento
-        self.fecha_proxima = QDateEdit()
-        self.fecha_proxima.setCalendarPopup(True)
-        self.fecha_proxima.setDate(QDate.currentDate())
-        form.addRow("Próximo mantenimiento", self.fecha_proxima)
-
-        self.pdf_mantenimiento = None
-        self.pdf_calibracion = None
-
+        # ================= PDFs BIOMÉDICO =================
         if self.categoria == "Biomédico":
-            self.btn_pdf_mant = QPushButton("Cargar PDF mantenimiento")
-            self.btn_pdf_mant.clicked.connect(self.cargar_pdf_mantenimiento)
-            layout.addWidget(self.btn_pdf_mant)
+            self.agregar_seccion("Documentos adjuntos")
 
-            self.btn_pdf_cal = QPushButton("Cargar PDF calibración")
-            self.btn_pdf_cal.clicked.connect(self.cargar_pdf_calibracion)
-            layout.addWidget(self.btn_pdf_cal)
+            self.btn_pdf_mant = self.agregar_boton(
+                "Cargar PDF mantenimiento",
+                self.cargar_pdf_mantenimiento
+            )
 
-        # Guardar
-        self.btn_guardar = QPushButton("Guardar")
-        self.btn_guardar.clicked.connect(self.guardar)
-        layout.addWidget(self.btn_guardar)
+            self.btn_pdf_cal = self.agregar_boton(
+                "Cargar PDF calibración",
+                self.cargar_pdf_calibracion
+            )
 
     def cargar_pdf_mantenimiento(self):
         archivo, _ = QFileDialog.getOpenFileName(
-        self,
-        "Seleccionar PDF",
-        "",
-        "PDF Files (*.pdf)"
+            self,
+            "Seleccionar PDF",
+            "",
+            "PDF Files (*.pdf)"
         )
 
         if archivo:
             self.pdf_mantenimiento = archivo
-
+            self.btn_pdf_mant.setText(
+                f"PDF mantenimiento ✓"
+            )
 
     def cargar_pdf_calibracion(self):
         archivo, _ = QFileDialog.getOpenFileName(
-        self,
-        "Seleccionar PDF",
-        "",
-        "PDF Files (*.pdf)"
+            self,
+            "Seleccionar PDF",
+            "",
+            "PDF Files (*.pdf)"
         )
 
         if archivo:
             self.pdf_calibracion = archivo
+            self.btn_pdf_cal.setText(
+                f"PDF calibración ✓"
+            )
 
     def guardar(self):
-        self.datos = {
-        "fecha": self.fecha.date().toString("yyyy-MM-dd"),
-        "tipo": self.tipo.currentText(),
-        "descripcion": self.descripcion.text(),
-        "responsable": self.responsable.text(),
-        "documento_responsable": self.documento.text(),
-        "fecha_proxima": self.fecha_proxima.date().toString("yyyy-MM-dd"),
-        "pdf_mantenimiento": self.pdf_mantenimiento,
-        "pdf_calibracion": self.pdf_calibracion
-        }
+        datos = self.obtener_datos()
+
+        datos["pdf_mantenimiento"] = self.pdf_mantenimiento
+        datos["pdf_calibracion"] = self.pdf_calibracion
+
+        self.datos = datos
         self.accept()

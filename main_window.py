@@ -18,12 +18,8 @@ from PyQt6.QtWidgets import (
     QHeaderView, QAbstractItemView,
     QSpacerItem, QSizePolicy
 )
-
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, PageBreak
-)
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.pagesizes import A4
+from PyQt6.QtWidgets import QLineEdit
+from PyQt6.QtWidgets import QMenu
 
 from biomedico_form import BiomedicoForm
 from computo_form import ComputoForm
@@ -31,6 +27,7 @@ from refrigeracion_form import RefrigeracionForm
 from muebles_form import MueblesForm
 from mantenimiento_form import MantenimientoForm
 from models.mantenimiento import Mantenimiento
+from utils.pdf_generator import generar_pdf_hoja_vida
 
 FORMULARIOS = {
     "Biomédico": BiomedicoForm,
@@ -209,7 +206,7 @@ QInputDialog QLineEdit {
         self.lista_servicios = QListWidget()
         self.cargar_servicios_json()
         self.actualizar_servicios()
-        self.lista_servicios.itemClicked.connect(self.filtrar_por_servicio)
+        self.lista_servicios.itemClicked.connect(self.aplicar_filtros)
 
         # Botones
         self.btn_agregar_servicio = QPushButton("Agregar servicio")
@@ -263,6 +260,29 @@ QInputDialog QLineEdit {
 
         right_layout.addLayout(top_bar)
 
+        filtros_layout = QHBoxLayout()
+
+        filtros_layout.addWidget(QLabel("Buscar"))
+
+        self.input_busqueda = QLineEdit()
+        self.input_busqueda.setPlaceholderText("Nombre del equipo...")
+        filtros_layout.addWidget(self.input_busqueda)
+
+        self.combo_filtro_categoria = QComboBox()
+        self.combo_filtro_categoria.addItems([
+    "Todas",
+    "Biomédico",
+    "Cómputo",
+    "Refrigeración",
+    "Muebles y enseres"
+        ])
+        filtros_layout.addWidget(self.combo_filtro_categoria)
+
+        self.input_busqueda.textChanged.connect(self.aplicar_filtros)
+        self.combo_filtro_categoria.currentTextChanged.connect(self.aplicar_filtros)
+
+        right_layout.addLayout(filtros_layout)
+
         # ---------- Parte inferior ----------
         toolbar = QFrame()
         toolbar_layout = QHBoxLayout()
@@ -279,7 +299,7 @@ QInputDialog QLineEdit {
         self.btn_editar.clicked.connect(self.editar_equipo)
         self.btn_mantenimiento.clicked.connect(self.registrar_mantenimiento)
         self.btn_borrar.clicked.connect(self.borrar_equipo)
-        self.btn_pdf.clicked.connect(self.generar_pdf_hoja_vida)
+        self.btn_pdf.clicked.connect(self.exportar_pdf)
 
         toolbar_layout.addWidget(self.btn_agregar)
         toolbar_layout.addWidget(self.btn_editar)
@@ -287,6 +307,11 @@ QInputDialog QLineEdit {
         toolbar_layout.addWidget(self.btn_borrar)
         toolbar_layout.addWidget(self.btn_pdf)
         toolbar_layout.addStretch()
+
+        self.input_busqueda.textChanged.connect(self.aplicar_filtros)
+        self.combo_filtro_categoria.currentTextChanged.connect(self.aplicar_filtros)
+        self.lista_servicios.itemClicked.connect(self.aplicar_filtros)
+
 
         right_layout.addWidget(toolbar)
 
@@ -322,6 +347,11 @@ QInputDialog QLineEdit {
         self.tab_mantenimientos.setHeaderHidden(True)
         self.tab_mantenimientos.itemDoubleClicked.connect(self.abrir_item_arbol)
 
+        self.tab_mantenimientos.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tab_mantenimientos.customContextMenuRequested.connect(
+    self.menu_mantenimiento
+)
+
         self.tabs.addTab(self.tab_hoja_vida, "Hoja de vida")
         self.tabs.addTab(self.tab_mantenimientos, "Documentos")
 
@@ -330,9 +360,8 @@ QInputDialog QLineEdit {
         # Cargar datos de prueba
 
         self.cargar_equipos_json()
-        self.actualizar_tabla()
         self.actualizar_servicios()
-        self.filtrar_por_servicio()
+        self.actualizar_tabla([])   # vacía
         self.actualizar_boton_alertas() 
         self.tabla_equipos.cellClicked.connect(self.mostrar_equipo)
         QTimer.singleShot(300, self.mostrar_alertas_inicio)
@@ -485,9 +514,9 @@ QInputDialog QLineEdit {
 
         # ================= HOJA DE VIDA =================
         texto_hoja = """
-    <h2>Hoja de Vida del Equipo</h2>
-    <hr>
-    """
+        <h2>Hoja de Vida del Equipo</h2>
+        <hr>
+        """
 
         for clave, valor in equipo.items():
             if clave in [
@@ -498,11 +527,11 @@ QInputDialog QLineEdit {
                 continue
 
             texto_hoja += f"""
-        <p>
+            <p>
             <b>{clave.replace('_', ' ').title()}:</b><br>
             {valor}
-        </p>
-        """
+            </p>
+            """
 
         self.tab_hoja_vida.setHtml(texto_hoja)
 
@@ -516,12 +545,15 @@ QInputDialog QLineEdit {
             self.tab_mantenimientos.addTopLevelItem(item)
             return
 
-        for m in mantenimientos:
+        for i, m in enumerate(mantenimientos):
             titulo = f"{m.get('fecha', '')} — {m.get('tipo', '')}"
             padre = QTreeWidgetItem([titulo])
 
+            # Guardar índice del mantenimiento (para editar/borrar)
+            padre.setData(0, Qt.ItemDataRole.UserRole + 1, i)
+
             padre.addChild(QTreeWidgetItem([
-                f"Responsable: {m.get('responsable', '')}"
+            f"Responsable: {m.get('responsable', '')}"
             ]))
 
             padre.addChild(QTreeWidgetItem([
@@ -536,7 +568,7 @@ QInputDialog QLineEdit {
             f"Próximo mantenimiento: {m.get('fecha_proxima', '')}"
             ]))
 
-            # PDFs solo para biomédico
+            # PDFs solo biomédico
             if equipo.get("categoria") == "Biomédico":
                 pdf_m = m.get("pdf_mantenimiento", "")
                 pdf_c = m.get("pdf_calibracion", "")
@@ -545,6 +577,7 @@ QInputDialog QLineEdit {
                     pdf_item = QTreeWidgetItem([
                     f"PDF mantenimiento: {os.path.basename(pdf_m)}"
                     ])
+                    # UserRole normal = ruta PDF
                     pdf_item.setData(0, Qt.ItemDataRole.UserRole, pdf_m)
                 else:
                     pdf_item = QTreeWidgetItem([
@@ -675,7 +708,7 @@ QInputDialog QLineEdit {
 
         self.equipos = equipos
         self.mostrar_info("Equipo guardado","El equipo fue guardado correctamente.")
-        self.actualizar_tabla()
+        self.aplicar_filtros()
         self.actualizar_boton_alertas()
 
     def borrar_equipo(self):
@@ -703,27 +736,11 @@ QInputDialog QLineEdit {
         item = self.lista_servicios.currentItem()
 
         if item:
-            self.filtrar_por_servicio()
+            self.aplicar_filtros()
         else:
             self.actualizar_tabla()
         self.mostrar_info("Equipo eliminado","El equipo fue eliminado correctamente.")
         self.actualizar_boton_alertas()
-
-    def filtrar_por_servicio(self):
-        item = self.lista_servicios.currentItem()
-
-        if not item:
-            self.actualizar_tabla()
-            return
-
-        servicio = item.text()
-
-        equipos_filtrados = [
-            equipo for equipo in self.equipos
-            if equipo.get("servicio") == servicio
-        ]
-
-        self.actualizar_tabla(equipos_filtrados)
 
     def mostrar_info(self, titulo, mensaje):
         QMessageBox.information(self, titulo, mensaje)
@@ -787,7 +804,7 @@ QInputDialog QLineEdit {
         item = self.lista_servicios.currentItem()
 
         if item:
-            self.filtrar_por_servicio()
+            self.aplicar_filtros()
         else:
             self.actualizar_tabla()
 
@@ -842,91 +859,13 @@ QInputDialog QLineEdit {
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
-        self.filtrar_por_servicio()
+        self.aplicar_filtros()
 
         self.mostrar_info(
         "Mantenimiento registrado",
         "El mantenimiento fue guardado correctamente."
         )
         self.actualizar_boton_alertas()
-
-    def generar_pdf_hoja_vida(self):
-        fila = self.tabla_equipos.currentRow()
-
-        if fila == -1:
-            self.mostrar_warning(
-            "Sin selección",
-            "Selecciona un equipo primero."
-            )
-            return
-
-        equipo = self.equipos_visibles[fila]
-
-        nombre = equipo.get(
-        "nombre_equipo",
-        equipo.get("nombre", "equipo")
-        )
-
-        ruta, _ = QFileDialog.getSaveFileName(
-    self,
-    "Guardar hoja de vida",
-    f"hoja_vida_{nombre}.pdf",
-    "PDF Files (*.pdf)"
-        )
-
-        if not ruta:
-            return
-
-        doc = SimpleDocTemplate(ruta, pagesize=A4)
-        estilos = getSampleStyleSheet()
-        elementos = []
-
-        elementos.append(
-            Paragraph("HOJA DE VIDA DEL EQUIPO", estilos["Title"])
-        )
-        elementos.append(Spacer(1, 20))
-
-        for clave, valor in equipo.items():
-            if clave == "mantenimientos":
-                continue
-
-            texto = f"<b>{clave.replace('_', ' ').title()}:</b> {valor}"
-            elementos.append(Paragraph(texto, estilos["BodyText"]))
-            elementos.append(Spacer(1, 8))
-
-        elementos.append(Spacer(1, 20))
-        elementos.append(
-        Paragraph("Historial de mantenimientos", estilos["Heading2"])
-        )
-
-        mantenimientos = equipo.get("mantenimientos", [])
-
-        if not mantenimientos:
-            elementos.append(
-            Paragraph("No hay mantenimientos.", estilos["BodyText"])
-            )
-        else:
-            for m in mantenimientos:
-                texto = (
-                f"Fecha: {m.get('fecha','')}<br/>"
-                f"Tipo: {m.get('tipo','')}<br/>"
-                f"Responsable: {m.get('responsable','')}<br/>"
-                f"Documento: {m.get('documento_responsable','')}<br/>"
-                f"Descripción: {m.get('descripcion','')}<br/>"
-                f"Próximo: {m.get('fecha_proxima','')}"
-                )
-
-                elementos.append(
-                Paragraph(texto, estilos["BodyText"])
-                )
-                elementos.append(Spacer(1, 15))
-
-        doc.build(elementos)
-        QDesktopServices.openUrl(QUrl.fromLocalFile(ruta))
-        self.mostrar_info(
-        "PDF generado",
-        f"Se creó: {ruta}"
-        )
     
     def obtener_alertas_mantenimiento(self):
         alertas = []
@@ -1023,3 +962,163 @@ QInputDialog QLineEdit {
                 font-weight: bold;
             }
             """)
+
+    def aplicar_filtros(self):
+        item = self.lista_servicios.currentItem()
+
+        if not item:
+            self.actualizar_tabla([])
+            return
+
+        servicio = item.text()
+        categoria = self.combo_filtro_categoria.currentText()
+        busqueda = self.input_busqueda.text().lower().strip()
+
+        filtrados = []
+
+        for equipo in self.equipos:
+            if equipo.get("servicio") != servicio:
+                continue
+
+            if categoria != "Todas":
+                if equipo.get("categoria") != categoria:
+                    continue
+
+            nombre = equipo.get(
+            "nombre_equipo",
+            equipo.get("nombre", "")
+            ).lower()
+
+            if busqueda and busqueda not in nombre:
+                continue
+
+            filtrados.append(equipo)
+
+        self.actualizar_tabla(filtrados)
+
+    def menu_mantenimiento(self, posicion):
+        item = self.tab_mantenimientos.itemAt(posicion)
+
+        if not item:
+            return
+
+        # Solo permitir en items principales (mantenimientos)
+        if item.parent() is not None:
+            item = item.parent()
+
+        menu = QMenu()
+        menu.setStyleSheet("""
+    QMenu {
+        background-color: white;
+        color: black;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 6px;
+    }
+
+    QMenu::item {
+        padding: 8px 25px 8px 20px;
+        border-radius: 6px;
+    }
+
+    QMenu::item:selected {
+        background-color: #2563eb;
+        color: white;
+    }
+    """)
+        
+        editar = menu.addAction("✏ Editar mantenimiento")
+        borrar = menu.addAction("🗑 Borrar mantenimiento")
+
+        accion = menu.exec(self.tab_mantenimientos.viewport().mapToGlobal(posicion))
+
+        if accion == editar:
+            self.editar_mantenimiento(item)
+
+        elif accion == borrar:
+            self.borrar_mantenimiento(item)
+
+    def borrar_mantenimiento(self, item):
+        indice = item.data(0, Qt.ItemDataRole.UserRole + 1)
+
+        respuesta = QMessageBox.question(
+        self,
+        "Confirmar",
+        "¿Eliminar mantenimiento?",
+        QMessageBox.StandardButton.Yes |
+        QMessageBox.StandardButton.No
+        )
+
+        if respuesta == QMessageBox.StandardButton.No:
+            return
+
+        if indice is None:
+            self.mostrar_warning(
+            "Error",
+            "No se pudo identificar el mantenimiento.")
+            return
+        
+        del self.equipo_actual["mantenimientos"][indice]
+
+        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+            json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
+
+        self.mostrar_equipo(
+        self.tabla_equipos.currentRow(),
+        0
+        )
+
+    def editar_mantenimiento(self, item):
+        indice = item.data(0, Qt.ItemDataRole.UserRole + 1)
+
+        if indice is None:
+            self.mostrar_warning(
+            "Error",
+            "No se pudo identificar el mantenimiento.")
+            return
+    
+        mantenimiento = self.equipo_actual["mantenimientos"][indice]
+
+        ventana = MantenimientoForm(
+        self.equipo_actual["categoria"],
+        datos_existentes=mantenimiento
+        )
+
+        resultado = ventana.exec()
+
+        if not resultado:
+            return
+
+        self.equipo_actual["mantenimientos"][indice] = ventana.datos
+
+        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+            json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
+
+        self.mostrar_equipo(
+        self.tabla_equipos.currentRow(),
+        0
+        )
+
+    def exportar_pdf(self):
+        fila = self.tabla_equipos.currentRow()
+
+        if fila == -1:
+            self.mostrar_warning(
+            "Sin selección",
+            "Selecciona un equipo"
+            )
+            return
+
+        equipo = self.equipos_visibles[fila]
+
+        ruta, _ = QFileDialog.getSaveFileName(
+        self,
+        "Guardar PDF",
+        "hoja_vida.pdf",
+        "PDF Files (*.pdf)"
+        )
+
+        if not ruta:
+            return
+
+        generar_pdf_hoja_vida(equipo, ruta)
