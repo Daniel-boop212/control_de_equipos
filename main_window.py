@@ -29,6 +29,10 @@ from mantenimiento_form import MantenimientoForm
 from alertas_window import AlertasWindow
 from models.mantenimiento import Mantenimiento
 from ayuda_window import AyudaWindow
+from loading_overlay import LoadingOverlay
+from storage_window import StorageWindow
+from backup_manager import BackupManager
+from PyQt6.QtWidgets import QMessageBox
 from utils.pdf_generator import generar_pdf_hoja_vida
 
 FORMULARIOS = {
@@ -256,6 +260,10 @@ QInputDialog QLineEdit {
         top_bar.addWidget(self.combo_categoria)
         top_bar.addStretch()
 
+        self.btn_storage = QPushButton("💾 Almacenamiento")
+        self.btn_storage.clicked.connect(self.mostrar_storage)
+        top_bar.addWidget(self.btn_storage)
+
         self.btn_alertas = QPushButton("⚠ Alertas")
         self.btn_alertas.clicked.connect(self.mostrar_alertas_manual)
         top_bar.addWidget(self.btn_alertas)
@@ -364,16 +372,24 @@ QInputDialog QLineEdit {
         right_layout.addWidget(self.tabs)
 
         # Cargar datos de prueba
-
+        self.loading = LoadingOverlay(self)
         self.cargar_equipos_json()
         self.actualizar_servicios()
         self.actualizar_tabla([])   # vacía
         self.actualizar_boton_alertas() 
         self.tabla_equipos.cellClicked.connect(self.mostrar_equipo)
         QTimer.singleShot(300, self.mostrar_alertas_inicio)
+        
 
     def abrir_item_arbol(self, item, columna):
+        print("Click en:", item.text(0))
+
         ruta = item.data(0, Qt.ItemDataRole.UserRole)
+
+        if not ruta and item.parent():
+            ruta = item.parent().data(0, Qt.ItemDataRole.UserRole)
+
+        print("Ruta encontrada:", ruta)
 
         if not ruta:
             return
@@ -467,14 +483,15 @@ QInputDialog QLineEdit {
             self.equipos = []
             return
 
-        with open(ruta, "r", encoding="utf-8") as archivo:
-            self.equipos = json.load(archivo)
-            for equipo in self.equipos:
-                equipo["estado"] = self.obtener_estado_equipo(equipo)
-
-            for equipo in self.equipos:
-                if "mantenimientos" not in equipo:
-                    equipo["mantenimientos"] = []
+        try:
+            self.equipos = BackupManager.cargar_json_seguro(ruta)
+        except Exception as e:
+            self.mostrar_error(
+        "Error de datos",
+        str(e)
+            )
+            self.equipos = []
+            return
 
     def actualizar_tabla(self, lista=None):
         if lista is None:
@@ -611,8 +628,15 @@ QInputDialog QLineEdit {
             self.servicios = []
             return
 
-        with open(ruta, "r", encoding="utf-8") as archivo:
-            self.servicios = json.load(archivo)
+        try:
+            self.servicios = BackupManager.cargar_json_seguro(ruta)
+        except Exception as e:
+            self.mostrar_error(
+        "Error de datos",
+        str(e)
+            )
+            self.servicios = []
+            return
 
     def actualizar_servicios(self):
         self.lista_servicios.clear()
@@ -624,8 +648,16 @@ QInputDialog QLineEdit {
         "Nuevo servicio",
         "Nombre del servicio:"
         )
-        if not nombre:
-            self.mostrar_warning("Dato inválido","Debes escribir un nombre.")
+        if not ok:
+            return
+
+        if not nombre.strip():
+            self.mostrar_warning(
+        "Dato inválido",
+        "Debes escribir un nombre."
+            )
+            return
+        
         if ok and nombre:
             self.servicios.append(nombre)
             self.guardar_servicios_json()
@@ -633,6 +665,7 @@ QInputDialog QLineEdit {
             self.mostrar_info("Servicio agregado",f"Se agregó el servicio: {nombre}")
 
     def guardar_servicios_json(self):
+        BackupManager.crear_backup("data/servicios.json")
         with open("data/servicios.json", "w", encoding="utf-8") as archivo:
             json.dump(self.servicios, archivo, indent=4, ensure_ascii=False)
 
@@ -678,6 +711,8 @@ QInputDialog QLineEdit {
         if equipo.get("servicio") != nombre
         ]
 
+        BackupManager.crear_backup("data/servicios.json")
+        BackupManager.crear_backup("data/equipos.json")
         self.guardar_servicios_json()
 
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
@@ -700,13 +735,13 @@ QInputDialog QLineEdit {
         ruta = "data/equipos.json"
 
         if os.path.exists(ruta):
-            with open(ruta, "r", encoding="utf-8") as archivo:
-                equipos = json.load(archivo)
+            equipos = BackupManager.cargar_json_seguro(ruta)
         else:
             equipos = []
 
         equipos.append(equipo)
 
+        BackupManager.crear_backup("data/equipos.json")
         with open(ruta, "w", encoding="utf-8") as archivo:
             json.dump(equipos, archivo, indent=4, ensure_ascii=False)
 
@@ -734,6 +769,7 @@ QInputDialog QLineEdit {
             return
         self.equipos.remove(equipo_a_borrar)
         
+        BackupManager.crear_backup("data/equipos.json")
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
@@ -797,6 +833,7 @@ QInputDialog QLineEdit {
         indice_real = self.equipos.index(equipo)
         self.equipos[indice_real] = nuevos_datos
 
+        BackupManager.crear_backup("data/equipos.json")
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(
             self.equipos,
@@ -863,6 +900,7 @@ QInputDialog QLineEdit {
 
         equipo["estado"] = self.obtener_estado_equipo(equipo)
 
+        BackupManager.crear_backup("data/equipos.json")
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
@@ -1058,6 +1096,7 @@ QInputDialog QLineEdit {
         self.aplicar_filtros()
         self.actualizar_boton_alertas()
 
+        BackupManager.crear_backup("data/equipos.json")
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
@@ -1092,6 +1131,7 @@ QInputDialog QLineEdit {
         self.aplicar_filtros()      
         self.actualizar_boton_alertas()
 
+        BackupManager.crear_backup("data/equipos.json")
         with open("data/equipos.json", "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
@@ -1122,7 +1162,9 @@ QInputDialog QLineEdit {
         if not ruta:
             return
 
+        self.loading.mostrar("Generando PDF...")
         generar_pdf_hoja_vida(equipo, ruta)
+        self.loading.ocultar()
 
     def actualizar_estado_mantenimientos(self, equipo):
         mantenimientos = equipo.get("mantenimientos", [])
@@ -1143,3 +1185,23 @@ QInputDialog QLineEdit {
     def mostrar_ayuda(self):
         ventana = AyudaWindow()
         ventana.exec()
+
+    def mostrar_storage(self):
+        ventana = StorageWindow(self.equipos)
+        ventana.exec()
+
+    def crear_backup(self):
+        carpeta, archivos = BackupManager.crear_backup()
+
+        if archivos:
+            QMessageBox.information(
+                self,
+            "Backup creado",
+            f"Backup guardado en:\n{carpeta}"
+            )
+        else:
+            QMessageBox.warning(
+            self,
+            "Error",
+            "No se encontraron archivos para respaldar."
+            )

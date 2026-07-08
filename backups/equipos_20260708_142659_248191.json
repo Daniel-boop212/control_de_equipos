@@ -36,23 +36,6 @@
         "recomendaciones": "dfdf",
         "servicio": "Consultorio 1",
         "categoria": "Biomédico",
-        "estado": "🟡",
-        "mantenimientos": [
-            {
-                "fecha": "08/07/2026",
-                "tipo": "Preventivo",
-                "fecha_proxima": "08/07/2026",
-                "responsable": "fe",
-                "documento_responsable": "dfdf",
-                "descripcion": "dfdf",
-                "pdf_mantenimiento": "storage/pdfs\\pdf_20260708_142655_281287.pdf",
-                "pdf_calibracion": "storage/pdfs\\pdf_20260708_142658_021359.pdf"
-            }
-        ],
-        "fecha_mantenimiento": "08/07/2026",
-        "descripcion_mantenimiento": "dfdf",
-        "responsable": "fe",
-        "documento_responsable": "dfdf",
-        "fecha_proximo_mantenimiento": "08/07/2026"
+        "estado": "🔵"
     }
 ]

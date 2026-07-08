@@ -1,5 +1,8 @@
 from PyQt6.QtWidgets import QFileDialog
 from base_form import BaseForm
+import os
+import shutil
+from datetime import datetime
 
 
 class MantenimientoForm(BaseForm):
@@ -16,8 +19,12 @@ class MantenimientoForm(BaseForm):
         if datos_existentes:
             self.cargar_datos_existentes(datos_existentes)
 
-            self.pdf_mantenimiento = datos_existentes.get("pdf_mantenimiento")
-            self.pdf_calibracion = datos_existentes.get("pdf_calibracion")
+            self.pdf_mantenimiento = datos_existentes.get(
+                "pdf_mantenimiento"
+            )
+            self.pdf_calibracion = datos_existentes.get(
+                "pdf_calibracion"
+            )
 
         self.btn_guardar.clicked.connect(self.guardar)
 
@@ -58,6 +65,22 @@ class MantenimientoForm(BaseForm):
                 self.cargar_pdf_calibracion
             )
 
+    def guardar_pdf_en_storage(self, ruta_original):
+        carpeta = "storage/pdfs"
+        os.makedirs(carpeta, exist_ok=True)
+
+        extension = os.path.splitext(ruta_original)[1]
+        timestamp = datetime.now().strftime(
+            "%Y%m%d_%H%M%S_%f"
+        )
+
+        nombre = f"pdf_{timestamp}{extension}"
+        destino = os.path.join(carpeta, nombre)
+
+        shutil.copy2(ruta_original, destino)
+
+        return destino
+
     def cargar_pdf_mantenimiento(self):
         archivo, _ = QFileDialog.getOpenFileName(
             self,
@@ -67,9 +90,12 @@ class MantenimientoForm(BaseForm):
         )
 
         if archivo:
-            self.pdf_mantenimiento = archivo
+            ruta_guardada = self.guardar_pdf_en_storage(
+                archivo
+            )
+            self.pdf_mantenimiento = ruta_guardada
             self.btn_pdf_mant.setText(
-                f"PDF mantenimiento ✓"
+                "PDF mantenimiento ✓"
             )
 
     def cargar_pdf_calibracion(self):
@@ -81,9 +107,12 @@ class MantenimientoForm(BaseForm):
         )
 
         if archivo:
-            self.pdf_calibracion = archivo
+            ruta_guardada = self.guardar_pdf_en_storage(
+                archivo
+            )
+            self.pdf_calibracion = ruta_guardada
             self.btn_pdf_cal.setText(
-                f"PDF calibración ✓"
+                "PDF calibración ✓"
             )
 
     def guardar(self):
