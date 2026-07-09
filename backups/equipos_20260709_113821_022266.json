@@ -47,22 +47,12 @@
                 "descripcion": "regret",
                 "pdf_mantenimiento": "storage/pdfs\\pdf_20260709_113758_191694.pdf",
                 "pdf_calibracion": null
-            },
-            {
-                "fecha": "09/07/2026",
-                "tipo": "Preventivo",
-                "fecha_proxima": "09/07/2026",
-                "responsable": "fdggfd",
-                "documento_responsable": "354325",
-                "descripcion": "rgffdg",
-                "pdf_mantenimiento": null,
-                "pdf_calibracion": null
             }
         ],
         "fecha_mantenimiento": "09/07/2026",
-        "descripcion_mantenimiento": "rgffdg",
-        "responsable": "fdggfd",
-        "documento_responsable": "354325",
-        "fecha_proximo_mantenimiento": "09/07/2026"
+        "descripcion_mantenimiento": "regret",
+        "responsable": "dsfsdf",
+        "documento_responsable": "342234",
+        "fecha_proximo_mantenimiento": "16/07/2026"
     }
 ]

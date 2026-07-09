@@ -43,14 +43,14 @@ class MueblesForm(BaseForm):
         self.agregar_input("Modelo")
         self.agregar_input("Color")
         self.agregar_input("Material")
-        self.agregar_input("Cantidad")
+        self.agregar_input("Cantidad", numerico=True)
         self.agregar_input("Estado")
 
         self.agregar_seccion("Compra y proveedor")
         self.agregar_fecha("Fecha de compra")
         self.agregar_input("Garantía")
         self.agregar_input("Proveedor")
-        self.agregar_input("Teléfono del proveedor")
+        self.agregar_input("Teléfono del proveedor", numerico=True)
 
     def guardar_datos(self):
         faltante = self.validar_campos_obligatorios([

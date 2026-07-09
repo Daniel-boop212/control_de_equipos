@@ -45,7 +45,7 @@ class MantenimientoForm(BaseForm):
         self.agregar_seccion("Responsable")
 
         self.agregar_input("responsable")
-        self.agregar_input("documento_responsable")
+        self.agregar_input("documento_responsable", numerico=True)
 
         # ================= DESCRIPCIÓN =================
         self.agregar_seccion("Descripción")

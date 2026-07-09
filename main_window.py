@@ -3,9 +3,11 @@ import os
 import sys
 import subprocess
 
+from PyQt6.QtGui import QIcon
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtGui import QFont, QColor, QDesktopServices
+from PyQt6.QtWidgets import QSplitter
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QFrame,
     QHBoxLayout, QVBoxLayout,
@@ -20,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QLineEdit
 from PyQt6.QtWidgets import QMenu
+from PyQt6.QtWidgets import QToolButton
 from datetime import datetime
 from biomedico_form import BiomedicoForm
 from computo_form import ComputoForm
@@ -174,8 +177,18 @@ QInputDialog QLineEdit {
     color: black;
     border: 1px solid #cbd5e1;
     padding: 6px;
-}              
+}  
+
+QToolButton {
+    background: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 18px;
+    font-size: 18px;
+}            
 """)
+        self.setWindowIcon(QIcon("assets/logo_app.png"))
+        import os
+        print(os.path.exists("assets/logo_app.png"))
         self.equipos_visibles = []
 
         # ================= WIDGET CENTRAL =================
@@ -194,19 +207,37 @@ QInputDialog QLineEdit {
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(12)
 
-        # Logo
-        logo = QLabel()
-        pixmap = QPixmap("assets/logo_clinica.jpg")  # ruta del logo
-        logo.setPixmap(
-        pixmap.scaled(
-        220, 120,
-        Qt.AspectRatioMode.KeepAspectRatio,
-        Qt.TransformationMode.SmoothTransformation
-        )
-        )
-        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # ===== CONTENEDOR DEL LOGO =====
+        logo_container = QWidget()
+        logo_layout = QHBoxLayout(logo_container)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
 
-        left_layout.addWidget(logo)
+        self.logo = QLabel()
+        self.cargar_logo()
+
+        self.btn_cambiar_logo = QToolButton()
+        self.btn_cambiar_logo.setText("⚙")
+        self.btn_cambiar_logo.setToolTip("Cambiar logo")
+        self.btn_cambiar_logo.clicked.connect(self.cambiar_logo)
+
+        self.btn_cambiar_logo.setStyleSheet("""
+QToolButton {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 15px;
+    padding: 5px;
+    font-size: 16px;
+}
+QToolButton:hover {
+    background: #e5e7eb;
+}
+""")
+
+        logo_layout.addWidget(self.logo)
+        logo_layout.addWidget(self.btn_cambiar_logo)
+        logo_layout.addStretch()
+
+        left_layout.addWidget(logo_container)
 
         # Lista de servicios
         self.lista_servicios = QListWidget()
@@ -264,15 +295,89 @@ QInputDialog QLineEdit {
         self.btn_storage.clicked.connect(self.mostrar_storage)
         top_bar.addWidget(self.btn_storage)
 
-        self.btn_alertas = QPushButton("⚠ Alertas")
-        self.btn_alertas.clicked.connect(self.mostrar_alertas_manual)
-        top_bar.addWidget(self.btn_alertas)
-
         self.btn_ayuda = QPushButton("❓ Ayuda")
         self.btn_ayuda.clicked.connect(self.mostrar_ayuda)
         top_bar.addWidget(self.btn_ayuda)
 
+        self.btn_alertas = QPushButton("⚠ Alertas")
+        self.btn_alertas.clicked.connect(self.mostrar_alertas_manual)
+        top_bar.addWidget(self.btn_alertas)
+
         right_layout.addLayout(top_bar)
+
+        # ================= DASHBOARD =================
+
+        dashboard = QHBoxLayout()
+        dashboard.setSpacing(15)
+
+        def crear_card(titulo, icono, color):
+            frame = QFrame()
+            frame.setFixedHeight(90)
+
+            frame.setStyleSheet(f"""
+            QFrame {{
+        background: white;
+        border: 2px solid {color};
+        border-radius: 14px;
+            }}
+    QLabel {{
+        border:none;
+    }}
+            """)
+
+            layout = QVBoxLayout(frame)
+            layout.setContentsMargins(12,10,12,10)
+
+            lblTitulo = QLabel(f"{icono} {titulo}")
+            lblTitulo.setStyleSheet("""
+        font-size:13px;
+        color:#64748b;
+        font-weight:bold;
+            """)
+
+            lblValor = QLabel("0")
+            lblValor.setStyleSheet(f"""
+        font-size:28px;
+        color:{color};
+        font-weight:bold;
+            """)
+
+            layout.addWidget(lblTitulo)
+            layout.addWidget(lblValor)
+
+            return frame, lblValor
+
+
+        card1, self.lblTotal = crear_card(
+    "Equipos",
+    "📦",
+    "#2563eb"
+        )
+
+        card2, self.lblBuenos = crear_card(
+    "Al día",
+    "🟢",
+    "#16a34a"
+        )
+
+        card3, self.lblProximos = crear_card(
+    "Próximos",
+    "🟡",
+    "#d97706"
+        )
+
+        card4, self.lblVencidos = crear_card(
+    "Vencidos",
+    "🔴",
+    "#dc2626"
+        )
+
+        dashboard.addWidget(card1)
+        dashboard.addWidget(card2)
+        dashboard.addWidget(card3)
+        dashboard.addWidget(card4)
+
+        right_layout.addLayout(dashboard)
 
         filtros_layout = QHBoxLayout()
 
@@ -308,18 +413,125 @@ QInputDialog QLineEdit {
         self.btn_mantenimiento = QPushButton("🛠 Mantenimiento")
         self.btn_borrar = QPushButton("🗑 Borrar")
         self.btn_pdf = QPushButton("📄 Exportar PDF")
+        self.btn_detalles = QPushButton("👁 Detalles")
+        self.btn_detalles.setCheckable(True)
+        self.btn_detalles.setChecked(False)
+
+        self.btn_agregar.setStyleSheet("""
+QPushButton {
+    background-color: #16a34a;   /* verde */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #15803d;
+}
+QPushButton:pressed {
+    background-color: #166534;
+}
+""")
+
+        self.btn_editar.setStyleSheet("""
+QPushButton {
+    background-color: #f59e0b;   /* naranja */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #d97706;
+}
+QPushButton:pressed {
+    background-color: #b45309;
+}
+""")
+
+        self.btn_mantenimiento.setStyleSheet("""
+QPushButton {
+    background-color: #8b5cf6;   /* morado */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #7c3aed;
+}
+QPushButton:pressed {
+    background-color: #6d28d9;
+}
+""")
+
+        self.btn_borrar.setStyleSheet("""
+QPushButton {
+    background-color: #dc2626;   /* rojo */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #b91c1c;
+}
+QPushButton:pressed {
+    background-color: #991b1b;
+}
+""")
+
+        self.btn_pdf.setStyleSheet("""
+QPushButton {
+    background-color: #0ea5e9;   /* celeste */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #0284c7;
+}
+QPushButton:pressed {
+    background-color: #0369a1;
+}
+""")
+
+        self.btn_detalles.setStyleSheet("""
+QPushButton {
+    background-color: #64748b;   /* gris */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #475569;
+}
+QPushButton:pressed {
+    background-color: #334155;
+}
+""")
         
         self.btn_agregar.clicked.connect(self.abrir_formulario)
         self.btn_editar.clicked.connect(self.editar_equipo)
         self.btn_mantenimiento.clicked.connect(self.registrar_mantenimiento)
         self.btn_borrar.clicked.connect(self.borrar_equipo)
         self.btn_pdf.clicked.connect(self.exportar_pdf)
+        self.btn_detalles.clicked.connect(self.toggle_detalles)
 
         toolbar_layout.addWidget(self.btn_agregar)
         toolbar_layout.addWidget(self.btn_editar)
         toolbar_layout.addWidget(self.btn_mantenimiento)
         toolbar_layout.addWidget(self.btn_borrar)
         toolbar_layout.addWidget(self.btn_pdf)
+        toolbar_layout.addWidget(self.btn_detalles)
         toolbar_layout.addStretch()
 
         self.input_busqueda.textChanged.connect(self.aplicar_filtros)
@@ -329,7 +541,7 @@ QInputDialog QLineEdit {
 
         right_layout.addWidget(toolbar)
 
-        # ---------- Tabla de equipos ----------
+        # ---------- Tabla de equipos + Panel de detalles (Splitter) ----------
         right_layout.addWidget(QLabel("Equipos del servicio"))
 
         self.tabla_equipos = QTableWidget()
@@ -347,16 +559,29 @@ QInputDialog QLineEdit {
         header = self.tabla_equipos.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-        right_layout.addWidget(self.tabla_equipos)
+        # ---------- Panel lateral de detalles ----------
+        self.panel_detalles = QWidget()
+        panel_layout = QVBoxLayout(self.panel_detalles)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(10)
 
-        # ---------- Panel inferior ----------
-        self.tabs = QTabWidget()
+        lbl_detalles_titulo = QLabel("Detalles del equipo")
+        lbl_detalles_titulo.setStyleSheet("""
+        font-size:15px;
+        color:#1e3a8a;
+        """)
 
-        # Pestaña hoja de vida
+        # Hoja de vida
         self.tab_hoja_vida = QTextBrowser()
         self.tab_hoja_vida.setText("Aquí aparecerá la hoja de vida del equipo.")
 
-        # Pestaña mantenimientos
+        lbl_historial_titulo = QLabel("Historial de mantenimientos")
+        lbl_historial_titulo.setStyleSheet("""
+        font-size:15px;
+        color:#1e3a8a;
+        """)
+
+        # Historial de mantenimientos
         self.tab_mantenimientos = QTreeWidget()
         self.tab_mantenimientos.setHeaderHidden(True)
         self.tab_mantenimientos.itemDoubleClicked.connect(self.abrir_item_arbol)
@@ -366,19 +591,30 @@ QInputDialog QLineEdit {
     self.menu_mantenimiento
 )
 
-        self.tabs.addTab(self.tab_hoja_vida, "Hoja de vida")
-        self.tabs.addTab(self.tab_mantenimientos, "Historial de mantenimientos")
+        panel_layout.addWidget(lbl_detalles_titulo)
+        panel_layout.addWidget(self.tab_hoja_vida, 2)
+        panel_layout.addWidget(lbl_historial_titulo)
+        panel_layout.addWidget(self.tab_mantenimientos, 3)
 
-        right_layout.addWidget(self.tabs)
+        # ---------- Splitter (tabla | detalles) ----------
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.addWidget(self.tabla_equipos)
+        self.splitter.addWidget(self.panel_detalles)
+
+        # El panel de detalles inicia oculto
+        self.panel_detalles.hide()
+
+        right_layout.addWidget(self.splitter, 1)
 
         # Cargar datos de prueba
         self.loading = LoadingOverlay(self)
         self.cargar_equipos_json()
+        self.actualizar_dashboard()
         self.actualizar_servicios()
         self.actualizar_tabla([])   # vacía
         self.actualizar_boton_alertas() 
         self.tabla_equipos.cellClicked.connect(self.mostrar_equipo)
-        QTimer.singleShot(300, self.mostrar_alertas_inicio)
+        QTimer.singleShot(6500, self.mostrar_alertas_inicio)
         
 
     def abrir_item_arbol(self, item, columna):
@@ -399,6 +635,15 @@ QInputDialog QLineEdit {
             return
 
         QDesktopServices.openUrl(QUrl.fromLocalFile(ruta))
+
+    def toggle_detalles(self):
+        if self.btn_detalles.isChecked():
+            self.panel_detalles.show()
+            self.splitter.setSizes([800, 350])
+            self.btn_detalles.setText("❮ Ocultar")
+        else:
+            self.panel_detalles.hide()
+            self.btn_detalles.setText("👁 Detalles")
 
     def abrir_formulario(self):
         categoria = self.combo_categoria.currentText()
@@ -532,6 +777,11 @@ QInputDialog QLineEdit {
         equipo = self.equipos_visibles[fila]
         self.equipo_actual = equipo
 
+        # Si el panel de detalles está oculto, se muestra automáticamente
+        if not self.panel_detalles.isVisible():
+            self.btn_detalles.setChecked(True)
+            self.toggle_detalles()
+
         # ================= HOJA DE VIDA =================
         texto_hoja = """
         <h2>Hoja de Vida del Equipo</h2>
@@ -567,7 +817,8 @@ QInputDialog QLineEdit {
             return
 
         for i, m in enumerate(mantenimientos):
-            titulo = f"{m.get('fecha', '')} — {m.get('tipo', '')}"
+            fecha = self.formatear_fecha(m.get("fecha", ""))
+            titulo = f"{fecha} — {m.get('tipo', '')}"
             padre = QTreeWidgetItem([titulo])
 
             # Guardar índice del mantenimiento (para editar/borrar)
@@ -658,6 +909,15 @@ QInputDialog QLineEdit {
             )
             return
         
+        servicios_normalizados = [s.lower().strip() for s in self.servicios]
+
+        if nombre.lower() in servicios_normalizados:
+            self.mostrar_warning(
+            "Servicio duplicado",
+            f"El servicio '{nombre}' ya existe."
+            )
+            return
+        
         if ok and nombre:
             self.servicios.append(nombre)
             self.guardar_servicios_json()
@@ -739,6 +999,13 @@ QInputDialog QLineEdit {
         else:
             equipos = []
 
+        if self.equipo_duplicado(equipo):
+            self.mostrar_warning(
+            "Equipo duplicado",
+            "Ya existe un equipo con ese nombre en este servicio."
+            )
+            return
+
         equipos.append(equipo)
 
         BackupManager.crear_backup("data/equipos.json")
@@ -749,6 +1016,7 @@ QInputDialog QLineEdit {
         self.mostrar_info("Equipo guardado","El equipo fue guardado correctamente.")
         self.aplicar_filtros()
         self.actualizar_boton_alertas()
+        self.actualizar_dashboard()
 
     def borrar_equipo(self):
         fila = self.tabla_equipos.currentRow()
@@ -781,6 +1049,7 @@ QInputDialog QLineEdit {
             self.actualizar_tabla()
         self.mostrar_info("Equipo eliminado","El equipo fue eliminado correctamente.")
         self.actualizar_boton_alertas()
+        self.actualizar_dashboard()
 
     def mostrar_info(self, titulo, mensaje):
         QMessageBox.information(self, titulo, mensaje)
@@ -854,6 +1123,7 @@ QInputDialog QLineEdit {
         "Los cambios fueron guardados correctamente."
         )
         self.actualizar_boton_alertas()
+        self.actualizar_dashboard()
 
     def obtener_estado_equipo(self, equipo):
         mantenimientos = equipo.get("mantenimientos", [])
@@ -911,6 +1181,7 @@ QInputDialog QLineEdit {
         "El mantenimiento fue guardado correctamente."
         )
         self.actualizar_boton_alertas()
+        self.actualizar_dashboard()
     
     def obtener_alertas_mantenimiento(self):
         alertas = []
@@ -1104,6 +1375,7 @@ QInputDialog QLineEdit {
         self.tabla_equipos.currentRow(),
         0
         )
+        self.actualizar_dashboard()
 
     def editar_mantenimiento(self, item):
         indice = item.data(0, Qt.ItemDataRole.UserRole + 1)
@@ -1139,6 +1411,7 @@ QInputDialog QLineEdit {
         self.tabla_equipos.currentRow(),
         0
         )
+        self.actualizar_dashboard()
 
     def exportar_pdf(self):
         fila = self.tabla_equipos.currentRow()
@@ -1205,3 +1478,100 @@ QInputDialog QLineEdit {
             "Error",
             "No se encontraron archivos para respaldar."
             )
+
+    def equipo_duplicado(self, nuevo_equipo):
+        nombre_nuevo = nuevo_equipo.get("nombre", "").strip().lower()
+        servicio_nuevo = nuevo_equipo.get("servicio", "").strip().lower()
+
+        for equipo in self.equipos:
+            nombre = equipo.get("nombre", "").strip().lower()
+            servicio = equipo.get("servicio", "").strip().lower()
+
+            if nombre == nombre_nuevo and servicio == servicio_nuevo:
+                return True
+
+        return False
+    
+    def cargar_logo(self):
+        ruta = "assets/logo_clinica.jpg"
+
+        if os.path.exists("assets/logo_actual.txt"):
+            with open("assets/logo_actual.txt", "r", encoding="utf-8") as f:
+                ruta = f.read().strip()
+
+        pixmap = QPixmap(ruta)
+
+        self.logo.setPixmap(
+        pixmap.scaled(
+            220, 120,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        )
+        self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    def cambiar_logo(self):
+        ruta, _ = QFileDialog.getOpenFileName(
+        self,
+        "Seleccionar logo",
+        "",
+        "Imágenes (*.png *.jpg *.jpeg)"
+        )
+
+        if not ruta:
+            return
+
+        with open("assets/logo_actual.txt", "w", encoding="utf-8") as f:
+            f.write(ruta)
+
+        self.cargar_logo()
+
+    def actualizar_dashboard(self):
+        total = len(self.equipos)
+
+        buenos = 0
+        proximos = 0
+        vencidos = 0
+
+        for equipo in self.equipos:
+            estado = equipo.get("estado", "")
+
+            if estado in ["🟢", "🔵"]:
+                buenos += 1
+            elif estado == "🟡":
+                proximos += 1
+            elif estado == "🔴":
+                vencidos += 1
+
+        self.lblTotal.setText(str(total))
+        self.lblBuenos.setText(str(buenos))
+        self.lblProximos.setText(str(proximos))
+        self.lblVencidos.setText(str(vencidos))
+
+    def formatear_fecha(self, fecha):
+        meses = {
+        1: "enero",
+        2: "febrero",
+        3: "marzo",
+        4: "abril",
+        5: "mayo",
+        6: "junio",
+        7: "julio",
+        8: "agosto",
+        9: "septiembre",
+        10: "octubre",
+        11: "noviembre",
+        12: "diciembre"
+        }
+
+        try:
+        # Si la fecha viene como 09/07/2026
+            fecha_obj = datetime.strptime(fecha, "%d/%m/%Y")
+        except:
+            try:
+            # Si viene como 2026-07-09
+                fecha_obj = datetime.strptime(fecha, "%Y-%m-%d")
+            except:
+                return fecha
+
+        return f"{fecha_obj.day} de {meses[fecha_obj.month]} de {fecha_obj.year}"

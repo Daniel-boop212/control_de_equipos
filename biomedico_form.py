@@ -70,9 +70,9 @@ class BiomedicoForm(BaseForm):
 
         self.agregar_seccion("Información general")
 
-        self.agregar_input("Código del equipo", obligatorio=True)
+        self.agregar_input("Código del equipo", obligatorio=True, numerico=True)
         self.agregar_input("R.S.")
-        self.agregar_input("Código del prestador")
+        self.agregar_input("Código del prestador", numerico=True)
         self.agregar_input("Registro de importación")
         self.agregar_input("Nombre del equipo", obligatorio=True)
         self.agregar_input("Marca", obligatorio=True)
@@ -86,10 +86,10 @@ class BiomedicoForm(BaseForm):
         self.agregar_input("N° de factura")
         self.agregar_fecha("Fecha de instalación")
         self.agregar_fecha("Vencimiento de garantía")
-        self.agregar_input("Costo")
+        self.agregar_input("Costo", numerico=True)
         self.agregar_input("Vida útil")
         self.agregar_input("Proveedor")
-        self.agregar_input("Teléfono del proveedor")
+        self.agregar_input("Teléfono del proveedor", numerico=True)
         self.agregar_input("Contacto del proveedor")
 
         self.agregar_seccion("Especificaciones técnicas")

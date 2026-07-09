@@ -62,7 +62,7 @@ class RefrigeracionForm(BaseForm):
         self.agregar_input("Proveedor")
         self.agregar_input("Garantía")
         self.agregar_input("Vida útil")
-        self.agregar_input("Teléfono del proveedor")
+        self.agregar_input("Teléfono del proveedor", numerico=True)
         self.agregar_input("Ubicación")  # extra para dejar pares
 
     def guardar_datos(self):

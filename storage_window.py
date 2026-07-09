@@ -396,9 +396,14 @@ class StorageWindow(QDialog):
         layout.addWidget(self.btn_restaurar)
         layout.addStretch()
 
+        self.btn_about = QPushButton("Acerca de")
+        self.btn_about.clicked.connect(self.mostrar_about)
+        layout.addWidget(self.btn_about)
+
         btn_cerrar = QPushButton("Cerrar")
         btn_cerrar.clicked.connect(self.close)
         layout.addWidget(btn_cerrar)
+
 
     def calcular_almacenamiento(self):
         total_json = 0
@@ -680,3 +685,12 @@ class StorageWindow(QDialog):
 
         tabla.setWordWrap(False)
         tabla.resizeRowsToContents()
+
+    def mostrar_about(self):
+        QMessageBox.information(
+        self,
+        "Acerca de",
+        "Gestión Clínica v1.0\n\n"
+        "Desarrollado por Daniel Orlando Andrade\n"
+        "© 2026 Todos los derechos reservados"
+        )

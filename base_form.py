@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QTextEdit
 from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import QHBoxLayout
 from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtGui import QIntValidator
 
 class BaseForm(QDialog):
     def __init__(self, titulo, width=1100, height=750):
@@ -233,9 +234,12 @@ QPushButton:hover {
             self.col_actual = 0
             self.fila_actual += 1
 
-    def agregar_input(self, nombre, obligatorio=False):
+    def agregar_input(self, nombre, obligatorio=False, numerico=False):
         label = self.crear_label(nombre, obligatorio)
         campo = QLineEdit()
+
+        if numerico:
+            campo.setValidator(QIntValidator())
 
         self.form.addWidget(label, self.fila_actual, self.col_actual * 2)
         self.form.addWidget(campo, self.fila_actual, self.col_actual * 2 + 1)
