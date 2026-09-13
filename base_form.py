@@ -8,6 +8,10 @@ from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import QHBoxLayout
 from PyQt6.QtWidgets import QFileDialog
 from PyQt6.QtGui import QIntValidator
+import os
+import shutil
+from datetime import datetime
+from paths import data_path
 
 class BaseForm(QDialog):
     def __init__(self, titulo, width=1100, height=750):
@@ -196,6 +200,7 @@ QPushButton:hover {
             )
 
             if archivo:
+                archivo = self.guardar_imagen_en_storage(archivo)
                 label_archivo.setText("Imagen cargada ✓")
                 self.inputs[nombre]["valor"] = archivo
 
@@ -209,6 +214,21 @@ QPushButton:hover {
         self.form.addWidget(contenedor, self.fila_actual, self.col_actual * 2 + 1)
 
         self._siguiente_posicion()
+
+    def guardar_imagen_en_storage(self, ruta_original):
+        carpeta_relativa = os.path.join("storage", "imagenes")
+        carpeta = data_path(carpeta_relativa)
+        os.makedirs(carpeta, exist_ok=True)
+
+        extension = os.path.splitext(ruta_original)[1].lower()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        nombre = f"imagen_{timestamp}{extension}"
+        destino = os.path.join(carpeta, nombre)
+
+        if os.path.abspath(ruta_original) != os.path.abspath(destino):
+            shutil.copy2(ruta_original, destino)
+
+        return os.path.join(carpeta_relativa, nombre)
 
     def agregar_seccion(self, texto):
         if self.col_actual == 1:

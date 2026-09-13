@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
+from paths import resource_path
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 from PyQt6.QtGui import QColor
 
@@ -52,7 +53,7 @@ class SplashScreen(QWidget):
 
         # Logo
         self.logo = QLabel()
-        pixmap = QPixmap("assets/logo_clinica.jpg")
+        pixmap = QPixmap(resource_path("assets/logo_clinica.jpg"))
         self.logo.setPixmap(
             pixmap.scaled(
                 220,
@@ -95,7 +96,7 @@ class SplashScreen(QWidget):
         """)
 
         # Autor
-        self.autor = QLabel("Desarrollado por Daniel Andrade • v1.0")
+        self.autor = QLabel("Desarrollado por Daniel Andrade • v1.3")
         self.autor.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.autor.setStyleSheet("""
             font-size: 12px;

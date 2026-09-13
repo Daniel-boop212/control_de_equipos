@@ -3,6 +3,7 @@ from base_form import BaseForm
 import os
 import shutil
 from datetime import datetime
+from paths import data_path
 
 
 class MantenimientoForm(BaseForm):
@@ -66,7 +67,7 @@ class MantenimientoForm(BaseForm):
             )
 
     def guardar_pdf_en_storage(self, ruta_original):
-        carpeta = "storage/pdfs"
+        carpeta = data_path("storage/pdfs")
         os.makedirs(carpeta, exist_ok=True)
 
         extension = os.path.splitext(ruta_original)[1]

@@ -253,7 +253,6 @@ class AyudaWindow(QDialog):
     """),
     "🕒 Backups"
         )
-
         
         tabs.addTab(
             self.crear_tab("""
@@ -269,7 +268,7 @@ class AyudaWindow(QDialog):
             "💡 Tips"
         )
 
-        footer = QLabel("Versión 1.0 • Sistema de gestión biomédica")
+        footer = QLabel("Versión 1.3 • Sistema de gestión biomédica")
         footer.setStyleSheet("""
             color: #9ca3af;
             font-size: 11px;

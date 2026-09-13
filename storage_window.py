@@ -16,6 +16,8 @@ from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QScrollArea
 from PyQt6.QtWidgets import QSizePolicy
+from paths import data_path
+from paths import resource_path
 
 class CircularProgress(QWidget):
     def __init__(self, porcentaje=0):
@@ -411,8 +413,8 @@ class StorageWindow(QDialog):
         total_pdfs = 0
 
         for archivo in [
-            "data/equipos.json",
-            "data/servicios.json"
+            data_path("data/servicios.json"),
+            data_path("data/equipos.json")
         ]:
             if os.path.exists(archivo):
                 total_json += os.path.getsize(archivo)
@@ -588,7 +590,7 @@ class StorageWindow(QDialog):
         self.main_layout.addWidget(contenedor)
 
     def obtener_backups(self):
-        carpeta = "backups"
+        carpeta = resource_path("backups")
 
         if not os.path.exists(carpeta):
             return []
@@ -660,9 +662,9 @@ class StorageWindow(QDialog):
         nombre = backup["archivo_real"]
 
         if nombre.startswith("equipos_"):
-            destino = "data/equipos.json"
+            destino = data_path("data/equipos.json")
         elif nombre.startswith("servicios_"):
-            destino = "data/servicios.json"
+            destino = data_path("data/servicios.json")
         else:
             return
 
@@ -690,7 +692,7 @@ class StorageWindow(QDialog):
         QMessageBox.information(
         self,
         "Acerca de",
-        "Gestión Clínica v1.0\n\n"
+        "Gestión Clínica v1.3\n\n"
         "Desarrollado por Daniel Orlando Andrade\n"
         "© 2026 Todos los derechos reservados"
         )

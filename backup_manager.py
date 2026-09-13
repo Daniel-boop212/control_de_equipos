@@ -1,8 +1,24 @@
 import os
+import sys
 import shutil
 from datetime import datetime
 import json
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+def app_path(relative_path):
+    if getattr(sys, "frozen", False):
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class BackupManager:
     MAX_BACKUPS_POR_ARCHIVO = 20
@@ -12,7 +28,7 @@ class BackupManager:
         if not os.path.exists(ruta_archivo):
             return None
 
-        carpeta_backup = "backups"
+        carpeta_backup = app_path("backups")
         os.makedirs(carpeta_backup, exist_ok=True)
 
         nombre_original = os.path.basename(ruta_archivo)
@@ -38,7 +54,7 @@ class BackupManager:
 
     @staticmethod
     def limpiar_backups(nombre_archivo):
-        carpeta_backup = "backups"
+        carpeta_backup = app_path("backups")
 
         if not os.path.exists(carpeta_backup):
             return
@@ -79,7 +95,7 @@ class BackupManager:
     
     @staticmethod
     def restaurar_ultimo_backup(nombre_archivo):
-        carpeta_backup = "backups"
+        carpeta_backup = app_path("backups")
 
         if not os.path.exists(carpeta_backup):
             return False
@@ -104,7 +120,7 @@ class BackupManager:
         )
 
         ultimo_backup = backups[0]
-        destino = os.path.join("data", f"{nombre_archivo}.json")
+        destino = app_path(os.path.join("data", f"{nombre_archivo}.json"))
 
         shutil.copy2(ultimo_backup, destino)
         return True
@@ -139,7 +155,7 @@ class BackupManager:
                 
     @staticmethod
     def obtener_historial_backups():
-        carpeta_backup = "backups"
+        carpeta_backup = app_path("backups")
 
         if not os.path.exists(carpeta_backup):
             return []
@@ -178,9 +194,9 @@ class BackupManager:
         nombre = os.path.basename(ruta_backup)
 
         if nombre.startswith("equipos_"):
-            destino = "data/equipos.json"
+            destino = app_path("data/equipos.json")
         elif nombre.startswith("servicios_"):
-            destino = "data/servicios.json"
+            destino = app_path("data/servicios.json")
         else:
             return False
 

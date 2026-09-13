@@ -10,8 +10,9 @@ from datetime import datetime
 import os
 import sys
 import subprocess
+from xml.sax.saxutils import escape
 
-LOGO_PATH = "assets/logo_clinica.jpg"
+from utils.app_config import get_clinic_logo_path, get_clinic_name
 
 
 def estado_legible(estado):
@@ -40,14 +41,17 @@ def generar_pdf_hoja_vida(equipo, ruta):
 
     # ================= HEADER =================
     logo = ""
-    if os.path.exists(LOGO_PATH):
-        logo = Image(LOGO_PATH, width=4 * cm, height=2 * cm)
+    logo_path = get_clinic_logo_path()
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=4 * cm, height=2 * cm)
+
+    nombre_clinica = escape(get_clinic_name())
 
     header = Table([
         [
             logo,
             Paragraph(
-                "<b>HOJA DE VIDA DEL EQUIPO</b><br/>Sistema de Gestión Clínica",
+                f"<b>HOJA DE VIDA DEL EQUIPO</b><br/>{nombre_clinica}",
                 estilos["Title"]
             )
         ]
@@ -228,3 +232,94 @@ def generar_pdf_hoja_vida(equipo, ruta):
             subprocess.run(["xdg-open", ruta])
     except Exception as e:
         print("No se pudo abrir el PDF:", e)
+
+
+def generar_pdf_solicitud_mantenimiento(datos, ruta):
+    if not ruta.lower().endswith(".pdf"):
+        ruta += ".pdf"
+
+    doc = SimpleDocTemplate(
+        ruta,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
+
+    estilos = getSampleStyleSheet()
+    elementos = []
+
+    logo = ""
+    logo_path = get_clinic_logo_path()
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=4 * cm, height=2 * cm)
+
+    nombre_clinica = escape(get_clinic_name())
+
+    header = Table([
+        [
+            logo,
+            Paragraph(
+                f"<b>SOLICITUD DE MANTENIMIENTO</b><br/>{nombre_clinica}",
+                estilos["Title"]
+            )
+        ]
+    ], colWidths=[4.5 * cm, 10.5 * cm])
+
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LINEBELOW", (0, 0), (-1, -1), 2, colors.HexColor("#2563eb"))
+    ]))
+
+    elementos.append(header)
+    elementos.append(Spacer(1, 20))
+
+    campos = [
+        ("Fecha", "fecha"),
+        ("Responsable", "responsable"),
+        ("Tipo de mantenimiento", "tipo_mantenimiento"),
+        ("Tipo de equipo", "tipo_equipo"),
+        ("Nombre del equipo", "nombre_equipo"),
+        ("Ubicacion", "ubicacion"),
+        ("Motivo del mantenimiento", "motivo_mantenimiento"),
+        ("Fecha de reporte al biomedico o responsable", "fecha_reporte"),
+        ("Fecha del mantenimiento", "fecha_mantenimiento"),
+        ("Conclusion del mantenimiento", "conclusion_mantenimiento"),
+        ("Responsable del mantenimiento", "responsable_mantenimiento"),
+        ("Estado del equipo", "estado_equipo"),
+    ]
+
+    tabla_datos = [["Campo", "Informacion"]]
+
+    for etiqueta, clave in campos:
+        valor = str(datos.get(clave, "") or "")
+        tabla_datos.append([
+            Paragraph(f"<b>{etiqueta}</b>", estilos["Normal"]),
+            Paragraph(escape(valor).replace("\n", "<br/>"), estilos["Normal"])
+        ])
+
+    tabla = Table(tabla_datos, colWidths=[5.5 * cm, 10 * cm])
+    estilo = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563eb")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 7),
+    ]
+
+    for i in range(1, len(tabla_datos)):
+        color = colors.whitesmoke if i % 2 == 0 else colors.white
+        estilo.append(("BACKGROUND", (0, i), (-1, i), color))
+
+    tabla.setStyle(TableStyle(estilo))
+    elementos.append(tabla)
+    elementos.append(Spacer(1, 20))
+
+    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+    elementos.append(
+        Paragraph(f"<i>Documento generado el {fecha}</i>", estilos["Italic"])
+    )
+
+    doc.build(elementos)

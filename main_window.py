@@ -5,12 +5,13 @@ import subprocess
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, QTimer, QUrl
+from PyQt6.QtCore import Qt, QTimer, QUrl, QDate
 from PyQt6.QtGui import QFont, QColor, QDesktopServices
 from PyQt6.QtWidgets import QSplitter
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QFrame,
-    QHBoxLayout, QVBoxLayout,
+    QHBoxLayout, QVBoxLayout, QGridLayout,
+    QDateEdit,
     QComboBox, QPushButton, QLabel,
     QListWidget, QTableWidget, QTableWidgetItem,
     QTabWidget, QTextEdit, QTextBrowser,
@@ -26,6 +27,7 @@ from PyQt6.QtWidgets import QToolButton
 from datetime import datetime
 from biomedico_form import BiomedicoForm
 from computo_form import ComputoForm
+from comunicacion_form import ComunicacionForm
 from refrigeracion_form import RefrigeracionForm
 from muebles_form import MueblesForm
 from mantenimiento_form import MantenimientoForm
@@ -35,14 +37,24 @@ from ayuda_window import AyudaWindow
 from loading_overlay import LoadingOverlay
 from storage_window import StorageWindow
 from backup_manager import BackupManager
+from data_transfer import DataTransferError, DataTransferManager
+from excel_exporter import exportar_equipos_excel
+from paths import resource_path, data_path
 from PyQt6.QtWidgets import QMessageBox
-from utils.pdf_generator import generar_pdf_hoja_vida
+from utils.app_config import (
+    get_clinic_logo_path,
+    get_clinic_name,
+    save_clinic_logo_path,
+    save_clinic_name,
+)
+from utils.pdf_generator import generar_pdf_hoja_vida, generar_pdf_solicitud_mantenimiento
 
 FORMULARIOS = {
     "Biomédico": BiomedicoForm,
     "Cómputo": ComputoForm,
     "Refrigeración": RefrigeracionForm,
-    "Muebles y enseres": MueblesForm
+    "Muebles y enseres": MueblesForm,
+    "Comunicación": ComunicacionForm
 }
 
 class MainWindow(QMainWindow):
@@ -186,9 +198,10 @@ QToolButton {
     font-size: 18px;
 }            
 """)
-        self.setWindowIcon(QIcon("assets/logo_app.png"))
-        import os
-        print(os.path.exists("assets/logo_app.png"))
+        icono_app = resource_path("assets/logo_app.ico")
+        if not os.path.exists(icono_app):
+            icono_app = resource_path("assets/logo_app.png")
+        self.setWindowIcon(QIcon(icono_app))
         self.equipos_visibles = []
 
         # ================= WIDGET CENTRAL =================
@@ -239,6 +252,43 @@ QToolButton:hover {
 
         left_layout.addWidget(logo_container)
 
+        nombre_clinica_container = QWidget()
+        nombre_clinica_layout = QHBoxLayout(nombre_clinica_container)
+        nombre_clinica_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.lbl_nombre_clinica = QLabel()
+        self.lbl_nombre_clinica.setWordWrap(True)
+        self.lbl_nombre_clinica.setStyleSheet("""
+QLabel {
+    color: #1e3a8a;
+    font-size: 14px;
+    font-weight: bold;
+}
+""")
+        self.cargar_nombre_clinica()
+
+        self.btn_cambiar_nombre_clinica = QToolButton()
+        self.btn_cambiar_nombre_clinica.setText("✎")
+        self.btn_cambiar_nombre_clinica.setToolTip("Cambiar nombre de la clínica")
+        self.btn_cambiar_nombre_clinica.clicked.connect(self.cambiar_nombre_clinica)
+        self.btn_cambiar_nombre_clinica.setStyleSheet("""
+QToolButton {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 15px;
+    padding: 5px;
+    font-size: 16px;
+}
+QToolButton:hover {
+    background: #e5e7eb;
+}
+""")
+
+        nombre_clinica_layout.addWidget(self.lbl_nombre_clinica, 1)
+        nombre_clinica_layout.addWidget(self.btn_cambiar_nombre_clinica)
+
+        left_layout.addWidget(nombre_clinica_container)
+
         # Lista de servicios
         self.lista_servicios = QListWidget()
         self.cargar_servicios_json()
@@ -285,15 +335,58 @@ QToolButton:hover {
     "Biomédico",
     "Cómputo",
     "Refrigeración",
-    "Muebles y enseres"
+    "Muebles y enseres",
+    "Comunicación"
         ])
 
         top_bar.addWidget(self.combo_categoria)
         top_bar.addStretch()
 
-        self.btn_storage = QPushButton("💾 Almacenamiento")
-        self.btn_storage.clicked.connect(self.mostrar_storage)
-        top_bar.addWidget(self.btn_storage)
+        self.btn_datos = QToolButton()
+        self.btn_datos.setText("Datos")
+        self.btn_datos.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.btn_datos.setStyleSheet("""
+QToolButton {
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: bold;
+    font-size: 13px;
+}
+QToolButton:hover {
+    background-color: #1d4ed8;
+}
+QToolButton::menu-indicator {
+    image: none;
+}
+""")
+
+        menu_datos = QMenu(self)
+        menu_datos.setStyleSheet("""
+QMenu {
+    background-color: white;
+    color: #111827;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px;
+}
+QMenu::item {
+    padding: 8px 28px 8px 18px;
+    border-radius: 6px;
+}
+QMenu::item:selected {
+    background-color: #2563eb;
+    color: white;
+}
+""")
+        menu_datos.addAction("Almacenamiento", self.mostrar_storage)
+        menu_datos.addAction("Exportar Excel", self.exportar_excel_equipos)
+        menu_datos.addAction("Exportar datos", self.exportar_datos)
+        menu_datos.addAction("Importar datos", self.importar_datos)
+        self.btn_datos.setMenu(menu_datos)
+        top_bar.addWidget(self.btn_datos)
 
         self.btn_ayuda = QPushButton("❓ Ayuda")
         self.btn_ayuda.clicked.connect(self.mostrar_ayuda)
@@ -304,6 +397,14 @@ QToolButton:hover {
         top_bar.addWidget(self.btn_alertas)
 
         right_layout.addLayout(top_bar)
+
+        self.tabs_principal = QTabWidget()
+        self.tab_equipos = QWidget()
+        equipos_layout = QVBoxLayout(self.tab_equipos)
+        equipos_layout.setContentsMargins(0, 0, 0, 0)
+        equipos_layout.setSpacing(16)
+        self.tabs_principal.addTab(self.tab_equipos, "Equipos")
+        right_layout.addWidget(self.tabs_principal, 1)
 
         # ================= DASHBOARD =================
 
@@ -377,7 +478,7 @@ QToolButton:hover {
         dashboard.addWidget(card3)
         dashboard.addWidget(card4)
 
-        right_layout.addLayout(dashboard)
+        equipos_layout.addLayout(dashboard)
 
         filtros_layout = QHBoxLayout()
 
@@ -393,14 +494,15 @@ QToolButton:hover {
     "Biomédico",
     "Cómputo",
     "Refrigeración",
-    "Muebles y enseres"
+    "Muebles y enseres",
+    "Comunicación"
         ])
         filtros_layout.addWidget(self.combo_filtro_categoria)
 
         self.input_busqueda.textChanged.connect(self.aplicar_filtros)
         self.combo_filtro_categoria.currentTextChanged.connect(self.aplicar_filtros)
 
-        right_layout.addLayout(filtros_layout)
+        equipos_layout.addLayout(filtros_layout)
 
         # ---------- Parte inferior ----------
         toolbar = QFrame()
@@ -539,10 +641,10 @@ QPushButton:pressed {
         self.lista_servicios.itemClicked.connect(self.aplicar_filtros)
 
 
-        right_layout.addWidget(toolbar)
+        equipos_layout.addWidget(toolbar)
 
         # ---------- Tabla de equipos + Panel de detalles (Splitter) ----------
-        right_layout.addWidget(QLabel("Equipos del servicio"))
+        equipos_layout.addWidget(QLabel("Equipos del servicio"))
 
         self.tabla_equipos = QTableWidget()
         self.tabla_equipos.setColumnCount(3)
@@ -604,7 +706,12 @@ QPushButton:pressed {
         # El panel de detalles inicia oculto
         self.panel_detalles.hide()
 
-        right_layout.addWidget(self.splitter, 1)
+        equipos_layout.addWidget(self.splitter, 1)
+
+        self.tabs_principal.addTab(
+        self.crear_tab_solicitudes(),
+        "Solicitudes de mantenimiento"
+        )
 
         # Cargar datos de prueba
         self.loading = LoadingOverlay(self)
@@ -616,6 +723,206 @@ QPushButton:pressed {
         self.tabla_equipos.cellClicked.connect(self.mostrar_equipo)
         QTimer.singleShot(6500, self.mostrar_alertas_inicio)
         
+    def crear_tab_solicitudes(self):
+        tab = QWidget()
+        tab.setObjectName("tabSolicitudes")
+        tab.setStyleSheet("""
+#tabSolicitudes QLabel {
+    color: #1f2937;
+    font-weight: bold;
+}
+#tabSolicitudes QLineEdit,
+#tabSolicitudes QComboBox,
+#tabSolicitudes QDateEdit {
+    background-color: white;
+    color: #111827;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-height: 34px;
+}
+#tabSolicitudes QTextEdit {
+    background-color: white;
+    color: #111827;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px;
+}
+#tabSolicitudes QComboBox QAbstractItemView {
+    background-color: white;
+    color: #111827;
+    selection-background-color: #2563eb;
+    selection-color: white;
+}
+#tabSolicitudes QCalendarWidget QWidget {
+    background-color: white;
+    color: #111827;
+}
+""")
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(14)
+
+        titulo = QLabel("Solicitudes de mantenimiento")
+        titulo.setStyleSheet("""
+        font-size:18px;
+        color:#1e3a8a;
+        font-weight:bold;
+        """)
+        layout.addWidget(titulo)
+
+        form = QGridLayout()
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(12)
+        form.setColumnMinimumWidth(0, 170)
+        form.setColumnMinimumWidth(2, 190)
+        form.setColumnStretch(1, 1)
+        form.setColumnStretch(3, 1)
+        layout.addLayout(form)
+
+        self.solicitud_inputs = {}
+
+        campos = [
+        ("fecha", "Fecha", "fecha"),
+        ("responsable", "Responsable", "texto"),
+        ("tipo_mantenimiento", "Tipo de mantenimiento", "combo_mantenimiento"),
+        ("tipo_equipo", "Tipo de equipo", "combo_equipo"),
+        ("nombre_equipo", "Nombre del equipo", "texto"),
+        ("ubicacion", "Ubicacion", "texto"),
+        ("motivo_mantenimiento", "Motivo del mantenimiento", "area"),
+        ("fecha_reporte", "Fecha de reporte al biomedico o responsable", "fecha"),
+        ("fecha_mantenimiento", "Fecha del mantenimiento", "fecha"),
+        ("conclusion_mantenimiento", "Conclusion del mantenimiento", "area"),
+        ("responsable_mantenimiento", "Nombre del responsable del mantenimiento", "texto"),
+        ("estado_equipo", "Estado del equipo", "texto"),
+        ]
+
+        fila = 0
+        columna = 0
+
+        for clave, etiqueta, tipo in campos:
+            if tipo == "area":
+                if columna != 0:
+                    fila += 1
+                    columna = 0
+
+                self._agregar_campo_solicitud(form, fila, 0, clave, etiqueta, tipo, True)
+                fila += 1
+                columna = 0
+                continue
+
+            self._agregar_campo_solicitud(form, fila, columna, clave, etiqueta, tipo)
+
+            if columna == 0:
+                columna = 2
+            else:
+                fila += 1
+                columna = 0
+
+        botones = QHBoxLayout()
+        botones.addStretch()
+
+        self.btn_limpiar_solicitud = QPushButton("Limpiar")
+        self.btn_limpiar_solicitud.clicked.connect(self.limpiar_solicitud)
+        botones.addWidget(self.btn_limpiar_solicitud)
+
+        self.btn_pdf_solicitud = QPushButton("Exportar PDF")
+        self.btn_pdf_solicitud.clicked.connect(self.exportar_pdf_solicitud)
+        botones.addWidget(self.btn_pdf_solicitud)
+
+        layout.addLayout(botones)
+        layout.addStretch()
+
+        return tab
+
+    def _agregar_campo_solicitud(self, layout, fila, columna, clave, etiqueta, tipo, ancho_completo=False):
+        label = QLabel(etiqueta)
+
+        if tipo == "fecha":
+            widget = QDateEdit()
+            widget.setCalendarPopup(True)
+            widget.setDate(QDate.currentDate())
+            widget.setDisplayFormat("dd/MM/yyyy")
+        elif tipo == "combo_mantenimiento":
+            widget = QComboBox()
+            widget.addItems(["Preventivo", "Correctivo", "Otro"])
+        elif tipo == "combo_equipo":
+            widget = QComboBox()
+            widget.addItems([
+            "Biomedico",
+            "Computo",
+            "Refrigeracion",
+            "Muebles y enseres",
+            "Comunicacion",
+            "Otro"
+            ])
+        elif tipo == "area":
+            widget = QTextEdit()
+            widget.setMinimumHeight(90)
+        else:
+            widget = QLineEdit()
+
+        if ancho_completo:
+            layout.addWidget(label, fila, 0)
+            layout.addWidget(widget, fila, 1, 1, 3)
+        else:
+            layout.addWidget(label, fila, columna)
+            layout.addWidget(widget, fila, columna + 1)
+
+        self.solicitud_inputs[clave] = widget
+
+    def obtener_datos_solicitud(self):
+        datos = {}
+
+        for clave, widget in self.solicitud_inputs.items():
+            if isinstance(widget, QDateEdit):
+                datos[clave] = widget.date().toString("dd/MM/yyyy")
+            elif isinstance(widget, QComboBox):
+                datos[clave] = widget.currentText()
+            elif isinstance(widget, QTextEdit):
+                datos[clave] = widget.toPlainText()
+            elif isinstance(widget, QLineEdit):
+                datos[clave] = widget.text()
+
+        return datos
+
+    def limpiar_solicitud(self):
+        for widget in self.solicitud_inputs.values():
+            if isinstance(widget, QDateEdit):
+                widget.setDate(QDate.currentDate())
+            elif isinstance(widget, QComboBox):
+                widget.setCurrentIndex(0)
+            elif isinstance(widget, QTextEdit):
+                widget.clear()
+            elif isinstance(widget, QLineEdit):
+                widget.clear()
+
+    def exportar_pdf_solicitud(self):
+        datos = self.obtener_datos_solicitud()
+
+        ruta, _ = QFileDialog.getSaveFileName(
+        self,
+        "Guardar solicitud",
+        "solicitud_mantenimiento.pdf",
+        "PDF Files (*.pdf)"
+        )
+
+        if not ruta:
+            return
+
+        try:
+            generar_pdf_solicitud_mantenimiento(datos, ruta)
+        except Exception as e:
+            self.mostrar_error(
+            "Error al generar PDF",
+            str(e)
+            )
+            return
+
+        self.mostrar_info(
+        "PDF generado",
+        f"Solicitud guardada correctamente en:\n{ruta}"
+        )
 
     def abrir_item_arbol(self, item, columna):
         print("Click en:", item.text(0))
@@ -721,8 +1028,26 @@ QPushButton:pressed {
 
                 self.guardar_equipo_json(datos)
 
+        elif categoria == "Comunicación":
+            ventana = ComunicacionForm()
+            resultado = ventana.exec()
+
+            if resultado:
+                datos = ventana.datos_guardados
+
+                servicio = self.lista_servicios.currentItem()
+                if servicio:
+                    datos["servicio"] = servicio.text()
+                else:
+                    datos["servicio"] = "Sin asignar"
+
+                datos["categoria"] = "Comunicación"
+                datos["estado"] = "🔵"
+
+                self.guardar_equipo_json(datos)
+
     def cargar_equipos_json(self):
-        ruta = "data/equipos.json"
+        ruta = data_path("data/equipos.json")
 
         if not os.path.exists(ruta):
             self.equipos = []
@@ -873,7 +1198,7 @@ QPushButton:pressed {
             self.tab_mantenimientos.addTopLevelItem(padre)
 
     def cargar_servicios_json(self):
-        ruta = "data/servicios.json"
+        ruta = data_path("data/servicios.json")
 
         if not os.path.exists(ruta):
             self.servicios = []
@@ -925,8 +1250,8 @@ QPushButton:pressed {
             self.mostrar_info("Servicio agregado",f"Se agregó el servicio: {nombre}")
 
     def guardar_servicios_json(self):
-        BackupManager.crear_backup("data/servicios.json")
-        with open("data/servicios.json", "w", encoding="utf-8") as archivo:
+        BackupManager.crear_backup(data_path("data/servicios.json"))
+        with open(data_path("data/servicios.json"), "w", encoding="utf-8") as archivo:
             json.dump(self.servicios, archivo, indent=4, ensure_ascii=False)
 
     def borrar_servicio(self):
@@ -971,11 +1296,11 @@ QPushButton:pressed {
         if equipo.get("servicio") != nombre
         ]
 
-        BackupManager.crear_backup("data/servicios.json")
-        BackupManager.crear_backup("data/equipos.json")
+        BackupManager.crear_backup(data_path("data/servicios.json"))
+        BackupManager.crear_backup(data_path("data/equipos.json"))
         self.guardar_servicios_json()
 
-        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+        with open(data_path("data/equipos.json"), "w", encoding="utf-8") as archivo:
             json.dump(
             self.equipos,
             archivo,
@@ -992,7 +1317,7 @@ QPushButton:pressed {
         )
 
     def guardar_equipo_json(self, equipo):
-        ruta = "data/equipos.json"
+        ruta = data_path("data/equipos.json")
 
         if os.path.exists(ruta):
             equipos = BackupManager.cargar_json_seguro(ruta)
@@ -1008,7 +1333,7 @@ QPushButton:pressed {
 
         equipos.append(equipo)
 
-        BackupManager.crear_backup("data/equipos.json")
+        BackupManager.crear_backup(data_path("data/equipos.json"))
         with open(ruta, "w", encoding="utf-8") as archivo:
             json.dump(equipos, archivo, indent=4, ensure_ascii=False)
 
@@ -1037,8 +1362,8 @@ QPushButton:pressed {
             return
         self.equipos.remove(equipo_a_borrar)
         
-        BackupManager.crear_backup("data/equipos.json")
-        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+        BackupManager.crear_backup(data_path("data/equipos.json"))
+        with open(data_path("data/equipos.json"), "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
         item = self.lista_servicios.currentItem()
@@ -1091,19 +1416,27 @@ QPushButton:pressed {
 
         nuevos_datos["servicio"] = equipo.get("servicio")
         nuevos_datos["categoria"] = equipo.get("categoria")
+
+        for clave in [
+            "mantenimientos",
+            "fecha_mantenimiento",
+            "descripcion_mantenimiento",
+            "responsable",
+            "documento_responsable",
+            "fecha_proximo_mantenimiento",
+            "pdf_mantenimiento",
+            "pdf_calibracion",
+        ]:
+            if clave in equipo:
+                nuevos_datos[clave] = equipo[clave]
+
         nuevos_datos["estado"] = self.obtener_estado_equipo(nuevos_datos)
-
-        if "pdf_mantenimiento" in equipo:
-            nuevos_datos["pdf_mantenimiento"] = equipo["pdf_mantenimiento"]
-
-        if "pdf_calibracion" in equipo:
-            nuevos_datos["pdf_calibracion"] = equipo["pdf_calibracion"]
 
         indice_real = self.equipos.index(equipo)
         self.equipos[indice_real] = nuevos_datos
 
-        BackupManager.crear_backup("data/equipos.json")
-        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+        BackupManager.crear_backup(data_path("data/equipos.json"))
+        with open(data_path("data/equipos.json"), "w", encoding="utf-8") as archivo:
             json.dump(
             self.equipos,
             archivo,
@@ -1170,8 +1503,8 @@ QPushButton:pressed {
 
         equipo["estado"] = self.obtener_estado_equipo(equipo)
 
-        BackupManager.crear_backup("data/equipos.json")
-        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+        BackupManager.crear_backup(data_path("data/equipos.json"))
+        with open(data_path("data/equipos.json"), "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
         self.aplicar_filtros()
@@ -1367,8 +1700,8 @@ QPushButton:pressed {
         self.aplicar_filtros()
         self.actualizar_boton_alertas()
 
-        BackupManager.crear_backup("data/equipos.json")
-        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+        BackupManager.crear_backup(data_path("data/equipos.json"))
+        with open(data_path("data/equipos.json"), "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
         self.mostrar_equipo(
@@ -1403,8 +1736,8 @@ QPushButton:pressed {
         self.aplicar_filtros()      
         self.actualizar_boton_alertas()
 
-        BackupManager.crear_backup("data/equipos.json")
-        with open("data/equipos.json", "w", encoding="utf-8") as archivo:
+        BackupManager.crear_backup(data_path("data/equipos.json"))
+        with open(data_path("data/equipos.json"), "w", encoding="utf-8") as archivo:
             json.dump(self.equipos, archivo, indent=4, ensure_ascii=False)
 
         self.mostrar_equipo(
@@ -1463,6 +1796,174 @@ QPushButton:pressed {
         ventana = StorageWindow(self.equipos)
         ventana.exec()
 
+    def exportar_excel_equipos(self):
+        if not self.equipos:
+            self.mostrar_warning(
+            "Sin datos",
+            "No hay equipos para exportar."
+            )
+            return
+
+        categorias = sorted({
+        equipo.get("categoria", "Sin categoria")
+        for equipo in self.equipos
+        })
+        opciones = ["Todos"] + categorias
+
+        categoria, ok = QInputDialog.getItem(
+        self,
+        "Exportar Excel",
+        "Tipo de equipo:",
+        opciones,
+        0,
+        False
+        )
+
+        if not ok:
+            return
+
+        equipos = self.equipos
+        if categoria != "Todos":
+            equipos = [
+            equipo for equipo in self.equipos
+            if equipo.get("categoria", "Sin categoria") == categoria
+            ]
+
+        nombre = datetime.now().strftime("equipos_%Y%m%d_%H%M%S.xlsx")
+        ruta, _ = QFileDialog.getSaveFileName(
+        self,
+        "Guardar Excel",
+        nombre,
+        "Excel Files (*.xlsx)"
+        )
+
+        if not ruta:
+            return
+
+        try:
+            destino = exportar_equipos_excel(equipos, ruta)
+        except Exception as e:
+            self.mostrar_error(
+            "Error al exportar Excel",
+            str(e)
+            )
+            return
+
+        self.mostrar_info(
+        "Excel exportado",
+        f"Archivo guardado correctamente en:\n{destino}"
+        )
+
+    def exportar_datos(self):
+        nombre = datetime.now().strftime(
+        "GestionClinica_datos_%Y%m%d_%H%M%S.zip"
+        )
+
+        ruta, _ = QFileDialog.getSaveFileName(
+        self,
+        "Exportar datos",
+        nombre,
+        "ZIP Files (*.zip)"
+        )
+
+        if not ruta:
+            return
+
+        try:
+            destino = DataTransferManager.exportar(ruta)
+        except Exception as e:
+            self.mostrar_error(
+            "Error al exportar",
+            str(e)
+            )
+            return
+
+        self.mostrar_info(
+        "Exportacion completa",
+        f"Datos exportados correctamente en:\n{destino}"
+        )
+
+    def importar_datos(self):
+        opciones = [
+        "Archivo ZIP exportado",
+        "Carpeta de instalacion antigua"
+        ]
+
+        opcion, ok = QInputDialog.getItem(
+        self,
+        "Importar datos",
+        "Selecciona el origen de los datos:",
+        opciones,
+        0,
+        False
+        )
+
+        if not ok:
+            return
+
+        if opcion == opciones[0]:
+            origen, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar ZIP",
+            "",
+            "ZIP Files (*.zip)"
+            )
+        else:
+            origen = QFileDialog.getExistingDirectory(
+            self,
+            "Seleccionar carpeta de instalacion antigua"
+            )
+
+        if not origen:
+            return
+
+        respuesta = QMessageBox.question(
+        self,
+        "Confirmar importacion",
+        "La importacion reemplazara los datos actuales.\n"
+        "Antes se creara un backup automatico de los JSON actuales.\n\n"
+        "Deseas continuar?",
+        QMessageBox.StandardButton.Yes |
+        QMessageBox.StandardButton.No
+        )
+
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            resultado = DataTransferManager.importar(origen)
+        except DataTransferError as e:
+            self.mostrar_error(
+            "No se pudo importar",
+            str(e)
+            )
+            return
+        except Exception as e:
+            self.mostrar_error(
+            "Error al importar",
+            str(e)
+            )
+            return
+
+        self.cargar_servicios_json()
+        self.cargar_equipos_json()
+        self.actualizar_servicios()
+        self.actualizar_tabla([])
+        self.actualizar_dashboard()
+        self.actualizar_boton_alertas()
+        self.tab_hoja_vida.setText(
+        "Aqui aparecera la hoja de vida del equipo."
+        )
+        self.tab_mantenimientos.clear()
+
+        self.mostrar_info(
+        "Importacion completa",
+        "Datos importados correctamente.\n\n"
+        f"Servicios: {resultado['servicios']}\n"
+        f"Equipos: {resultado['equipos']}\n"
+        f"Archivos reubicados: {resultado['archivos_reubicados']}"
+        )
+
     def crear_backup(self):
         carpeta, archivos = BackupManager.crear_backup()
 
@@ -1493,11 +1994,7 @@ QPushButton:pressed {
         return False
     
     def cargar_logo(self):
-        ruta = "assets/logo_clinica.jpg"
-
-        if os.path.exists("assets/logo_actual.txt"):
-            with open("assets/logo_actual.txt", "r", encoding="utf-8") as f:
-                ruta = f.read().strip()
+        ruta = get_clinic_logo_path()
 
         pixmap = QPixmap(ruta)
 
@@ -1521,10 +2018,38 @@ QPushButton:pressed {
         if not ruta:
             return
 
-        with open("assets/logo_actual.txt", "w", encoding="utf-8") as f:
-            f.write(ruta)
+        os.makedirs(data_path("assets"), exist_ok=True)
+
+        save_clinic_logo_path(ruta)
 
         self.cargar_logo()
+
+    def cargar_nombre_clinica(self):
+        self.lbl_nombre_clinica.setText(get_clinic_name())
+
+    def cambiar_nombre_clinica(self):
+        nombre_actual = get_clinic_name()
+        nombre, ok = QInputDialog.getText(
+        self,
+        "Nombre de la clínica",
+        "Nombre que aparecerá en los PDF:",
+        QLineEdit.EchoMode.Normal,
+        nombre_actual
+        )
+
+        if not ok:
+            return
+
+        nombre = nombre.strip()
+        if not nombre:
+            self.mostrar_warning(
+            "Nombre vacío",
+            "Escribe un nombre para la clínica."
+            )
+            return
+
+        save_clinic_name(nombre)
+        self.cargar_nombre_clinica()
 
     def actualizar_dashboard(self):
         total = len(self.equipos)
