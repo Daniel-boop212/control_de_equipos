@@ -36,3 +36,16 @@ backups/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Imágenes
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.svg
+*.ico
+
+# Documentos PDF
+*.pdf
